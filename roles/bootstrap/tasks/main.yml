@@ -1,6 +1,6 @@
 ---
 # 1) Import the GPG keys we’ll need for the archive
-- name: Import missing GPG keys for Debian repositories (raw)
+- name: Import missing GPG keys for Debian repositories
   raw: |
     apt-key adv --keyserver keyserver.ubuntu.com \
       --recv-keys 0E98404D386FA1D9 6ED0E7B82643E131
@@ -9,9 +9,10 @@
 # 2) Wipe out any old sources lists
 - name: Remove all old apt source lists
   raw: rm -f /etc/apt/sources.list /etc/apt/sources.list.d/*.list
+  changed_when: false
 
-# 3) Point at the archived Stretch repos (allowing for expired metadata)
-- name: Configure Apt for the archived Stretch repositories
+# 3) Point at the archived Stretch + backports repos
+- name: Configure Apt for archived Stretch & backports
   raw: |
     cat > /etc/apt/apt.conf.d/99stretch-archive << 'EOF'
     Acquire {
@@ -22,60 +23,54 @@
     EOF
 
     cat > /etc/apt/sources.list << 'EOF'
-    deb http://archive.debian.org/debian stretch main
-    deb http://archive.debian.org/debian-security stretch/updates main
-    deb http://archive.debian.org/debian stretch-updates main
-    deb http://archive.debian.org/debian stretch-backports main
+    # Debian 9 (Stretch) main archive
+    deb http://archive.debian.org/debian           stretch           main contrib non-free
+    # Stretch security
+    deb http://archive.debian.org/debian-security  stretch/updates   main contrib non-free
+    # Stretch updates
+    deb http://archive.debian.org/debian           stretch-updates   main contrib non-free
+    # Backports for Stretch (contains Python 3.7)
+    deb http://archive.debian.org/debian           stretch-backports main contrib non-free
     EOF
   changed_when: false
 
-# 4) Fetch the new index, install just enough to get Python 3 & keyring
-- name: Prime the keyring and install minimal Python & python-apt
+# 4) Refresh the cache so backports show up
+- name: Update apt cache (for Stretch + backports)
   raw: |
     export DEBIAN_FRONTEND=noninteractive
-    sleep 5
-    apt-get update -o Acquire::Check-Valid-Until=false -o Acquire::AllowInsecureRepositories=true
-    DEBIAN_FRONTEND=noninteractive apt-get install -y --allow-unauthenticated \
+    apt-get update -o Acquire::Check-Valid-Until=false
+  changed_when: false
+
+# 5) Raw-install Python 3.7 + keyring from backports
+- name: Install Python 3.7, venv, python3-apt & keyring (raw)
+  raw: |
+    export DEBIAN_FRONTEND=noninteractive
+    apt-get install -y --allow-unauthenticated \
       --no-install-recommends \
       -o Dpkg::Options::="--force-confdef" \
       -o Dpkg::Options::="--force-confold" \
-      debian-archive-keyring python3-minimal python3-apt
+      -t stretch-backports \
+      python3.7 python3.7-venv python3.7-apt debian-archive-keyring
   changed_when: false
 
 - name: Give the new python time to settle
   pause:
     seconds: 5
 
-# 5) Tell Ansible which interpreter to use
-- name: Locate python3 on the remote
-  raw: which python3 || true
-  register: _py3
-  changed_when: false
-
-- name: Set ansible_python_interpreter if found
+# 6) Point Ansible at Python 3.7
+- name: Set ansible_python_interpreter to python3.7
   set_fact:
-    ansible_python_interpreter: "{{ _py3.stdout | trim }}"
-  when: _py3.stdout | trim != ""
+    ansible_python_interpreter: /usr/bin/python3.7
 
-- name: Fail if we still can’t find python3
-  fail:
-    msg: "python3 was not found on the remote after bootstrap!"
-  when: _py3.stdout | trim == ""
-
-# 6) Switch to the normal apt: module now that Python exists
-- name: Install full python3.7, python3.7-venv, python3.7-apt and openssh-server
+# 7) Now we can safely use the normal apt: module under Python 3.7
+- name: Install OpenSSH server
   apt:
-    name:
-      - python3.7
-      - python3.7-venv
-      - python3.7-apt
-      - openssh-server
-    state: latest
+    name: openssh-server
+    state: present
     update_cache: yes
     install_recommends: no
-    default_release: stretch-backports
 
-# 7) Generate an ED25519 keypair on the CONTROL node, once
+# 8) Generate an ED25519 keypair on the CONTROL node, once
 - name: Ensure we have a root ed25519 keypair (control machine)
   delegate_to: localhost
   local_action:
@@ -83,7 +78,7 @@
     cmd: ssh-keygen -t ed25519 -f "{{ playbook_dir }}/files/root_id_ed25519" -N ''
     creates: "{{ playbook_dir }}/files/root_id_ed25519"
 
-# 8) Push the public half to the target’s authorized_keys
+# 9) Deploy the public key into root’s authorized_keys
 - name: Ensure /root/.ssh exists
   file:
     path: /root/.ssh
