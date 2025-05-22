@@ -1,12 +1,14 @@
 - hosts: cloudkey
+  remote_user: root
   become: yes
-   # For bootstrap and SSH hardening, we continue to use password login.
-  # Supply ansible_password externally (e.g. via inventory or extra vars).
+  # For bootstrap and SSH hardening, we continue to use password login.
+  # Supply ansible_password externally (e.g. via inventory, environment variable, or extra-vars).
   roles:
     - bootstrap
     - ssh_hardening
 
 - hosts: cloudkey
+  remote_user: root
   become: yes
   vars:
     # Pivot to SSH key–based authentication for subsequent plays.
