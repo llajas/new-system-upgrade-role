@@ -1,4 +1,9 @@
 ---
+- name: Ensure apt keyring is installed (raw)
+  raw: |
+    apt-get update && apt-get install -y debian-archive-keyring
+  changed_when: false
+
 - name: Ensure minimal python3 is installed (raw)
   raw: |
     apt-get update && apt-get install -y python3-minimal
