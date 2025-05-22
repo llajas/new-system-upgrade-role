@@ -46,16 +46,18 @@
         nohup reboot >/dev/null 2>&1 &
         exit 0
 
-    - name: Wait for SSH port to be available post-reboot
+    - name: Wait for SSH port to be open (run on control node)
       wait_for:
+        host: "{{ inventory_hostname }}"
         port: 22
         delay: 10
         timeout: 300
+      delegate_to: localhost
 
-    - name: Wait for a shell command to succeed
+    - name: Wait for shell to actually accept commands
       raw: uptime
-      register: uptime
-      until: uptime is not failed
+      register: upcheck
+      until: upcheck.rc == 0
       retries: 30
       delay: 10
   when: current_release | int == 8
@@ -87,16 +89,18 @@
         nohup reboot >/dev/null 2>&1 &
         exit 0
 
-    - name: Wait for SSH port to be available post-reboot
+    - name: Wait for SSH port to be open (run on control node)
       wait_for:
+        host: "{{ inventory_hostname }}"
         port: 22
         delay: 10
         timeout: 300
+      delegate_to: localhost
 
-    - name: Wait for a shell command to succeed
+    - name: Wait for shell to actually accept commands
       raw: uptime
-      register: uptime
-      until: uptime is not failed
+      register: upcheck
+      until: upcheck.rc == 0
       retries: 30
       delay: 10
   when: current_release | int == 9
@@ -117,9 +121,9 @@
           debian-archive-keyring
       changed_when: false
 
-    - name: remove UseDNS from sshd Configure (raw)
-      raw: |
-        sed -i '/^UseDNS/d' /etc/ssh/sshd_config
+    # - name: remove UseDNS from sshd Configure (raw)
+    #   raw: |
+    #     sed -i '/^UseDNS/d' /etc/ssh/sshd_config
 
     - name: Pause for Python 3.7 to settle
       pause:
@@ -133,16 +137,18 @@
       raw: |
         nohup shutdown -r now "Rebooting after Python bootstrap" >/dev/null 2>&1 &
 
-    - name: Wait for SSH port to be available post-reboot
+    - name: Wait for SSH port to be open (run on control node)
       wait_for:
+        host: "{{ inventory_hostname }}"
         port: 22
         delay: 10
         timeout: 300
+      delegate_to: localhost
 
-    - name: Wait for a shell command to succeed
+    - name: Wait for shell to actually accept commands
       raw: uptime
-      register: uptime
-      until: uptime is not failed
+      register: upcheck
+      until: upcheck.rc == 0
       retries: 30
       delay: 10
   when: current_release | int == 10
