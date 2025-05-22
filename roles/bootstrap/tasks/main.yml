@@ -9,9 +9,12 @@
   set_fact:
     current_release: >-
       {{ (os_release_raw.stdout
-               | regex_findall('^VERSION_ID="?(.+?)"?$', multiline=True)
+               | regex_findall('^VERSION_ID="?([0-9]+)"?$', multiline=True)
              )[0] }}
 
+- name: Print current_release
+  debug:
+    msg: "Current release is {{ current_release }}"
 # ─────────────────────────────────────────────────────────────
 # Phase 1: Jessie (8) → Stretch (9)
 # ─────────────────────────────────────────────────────────────
@@ -50,7 +53,7 @@
       wait_for_connection:
         delay: 10
         timeout: 300
-  when: current_release == "8"
+  when: current_release | int == 8
 
 # ─────────────────────────────────────────────────────────────
 # Phase 2: Stretch (9) → Buster (10)
@@ -83,7 +86,7 @@
       wait_for_connection:
         delay: 10
         timeout: 300
-  when: current_release == "9"
+  when: current_release | int == 9
 
 # ─────────────────────────────────────────────────────────────
 # Phase 2b: Bootstrap Python on Buster
@@ -114,7 +117,7 @@
         msg: "Rebooting after Python 3.7 & OpenSSH install"
         reboot_timeout: 300
         test_command: uptime
-  when: current_release == "10"
+  when: current_release | int == 10
 
 # Once Python is available, re-establish a Python-based connection
 - name: Re-gather facts now that Python is available
