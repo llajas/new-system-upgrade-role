@@ -8,7 +8,7 @@
   raw: |
     echo 'Acquire::Check-Valid-Until "false";' > /etc/apt/apt.conf.d/99jessie-archive
     echo 'Acquire::AllowInsecureRepositories "true";' >> /etc/apt/apt.conf.d/99jessie-archive
-    cat > /etc/apt/sources.list.d/jessie.list <<EOF
+    cat > /etc/apt/sources.list.d/jessie.list <<'EOF'
 deb http://archive.debian.org/debian           jessie       main
 deb http://archive.debian.org/debian-updates   jessie       main
 deb http://archive.debian.org/debian-security  jessie/updates main
