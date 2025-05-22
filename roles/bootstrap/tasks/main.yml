@@ -46,11 +46,18 @@
         nohup reboot >/dev/null 2>&1 &
         exit 0
 
-    - name: Wait for SSH after Stretch reboot
-      wait_for_connection:
+    - name: Wait for SSH port to be available post-reboot
+      wait_for:
+        port: 22
         delay: 10
         timeout: 300
-        test_command: uptime
+
+    - name: Wait for a shell command to succeed
+      raw: uptime
+      register: uptime
+      until: uptime is not failed
+      retries: 30
+      delay: 10
   when: current_release | int == 8
 
 # ─────────────────────────────────────────────────────────────
@@ -80,11 +87,18 @@
         nohup reboot >/dev/null 2>&1 &
         exit 0
 
-    - name: Wait for SSH port to open after Buster reboot
-      wait_for_connection:
+    - name: Wait for SSH port to be available post-reboot
+      wait_for:
+        port: 22
         delay: 10
         timeout: 300
-        test_command: uptime
+
+    - name: Wait for a shell command to succeed
+      raw: uptime
+      register: uptime
+      until: uptime is not failed
+      retries: 30
+      delay: 10
   when: current_release | int == 9
 
 # ─────────────────────────────────────────────────────────────
@@ -119,11 +133,18 @@
       raw: |
         nohup shutdown -r now "Rebooting after Python bootstrap" >/dev/null 2>&1 &
 
-    - name: Wait for SSH + raw uptime test post-bootstrap
-      wait_for_connection:
+    - name: Wait for SSH port to be available post-reboot
+      wait_for:
+        port: 22
         delay: 10
         timeout: 300
-        test_command: uptime
+
+    - name: Wait for a shell command to succeed
+      raw: uptime
+      register: uptime
+      until: uptime is not failed
+      retries: 30
+      delay: 10
   when: current_release | int == 10
 
 # Once Python is available, re-establish a Python-based connection
