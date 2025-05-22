@@ -153,13 +153,3 @@
     msg: "Rebooting after upgrade to Bookworm"
     reboot_timeout: 300
     test_command: uptime
-
-
-# ─────────────────────────────────────────────────────────────
-# Handlers
-# ─────────────────────────────────────────────────────────────
-
-handlers:
-  - name: Update apt cache
-    apt:
-      update_cache: yes
