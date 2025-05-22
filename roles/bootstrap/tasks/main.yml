@@ -32,8 +32,8 @@
 # 4) Fetch the new index, install just enough to get Python 3 & keyring
 - name: Prime the keyring and install minimal Python & python-apt
   raw: |
-    apt-get update -o Acquire::Check-Valid-Until=false -o Acquire::PDiffs=false
-    apt-get install -y --no-install-recommends \
+    apt-get update -o Acquire::Check-Valid-Until=false -o Acquire::PDiffs=false && \
+    apt-get install -y --allow-unauthenticated --no-install-recommends \
       -o APT::Default-Release=jessie \
       debian-archive-keyring python3-minimal python3-apt
   changed_when: false
