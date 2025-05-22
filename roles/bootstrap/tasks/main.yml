@@ -1,94 +1,165 @@
 ---
-# 1) Import the GPG keys we’ll need for the archive
-- name: Import missing GPG keys for Debian repositories
-  raw: |
-    apt-key adv --keyserver keyserver.ubuntu.com \
-      --recv-keys 0E98404D386FA1D9 6ED0E7B82643E131
-  changed_when: false
+# roles/upgrade/tasks/main.yml
+# ─────────────────────────────────────────────────────────────
+# Phase 1: Jessie → Stretch
+# ─────────────────────────────────────────────────────────────
 
-# 2) Wipe out any old sources lists
-- name: Remove all old apt source lists
-  raw: rm -f /etc/apt/sources.list /etc/apt/sources.list.d/*.list
-  changed_when: false
-
-# 3) Point at the archived Stretch + backports repos (no more stretch-updates)
-- name: Configure Apt for archived Stretch & backports
+- name: Configure APT for Stretch upgrade
   raw: |
     cat > /etc/apt/apt.conf.d/99stretch-archive << 'EOF'
     Acquire {
       Check-Valid-Until "false";
       AllowInsecureRepositories "true";
-      PDiffs "false";
     };
     EOF
 
     cat > /etc/apt/sources.list << 'EOF'
-    # Debian 9 (Stretch) main archive
-    deb http://archive.debian.org/debian           stretch           main contrib non-free
-
-    # Stretch security (also archived)
-    deb http://archive.debian.org/debian-security  stretch/updates   main contrib non-free
-
-    # Stretch backports (for Python 3.7, etc)
-    deb http://archive.debian.org/debian           stretch-backports main contrib non-free
+    deb http://archive.debian.org/debian           stretch        main contrib non-free
+    deb http://archive.debian.org/debian-security  stretch/updates main contrib non-free
+    deb http://archive.debian.org/debian           stretch-updates main
     EOF
   changed_when: false
 
-# 4) Refresh the cache so backports show up
-- name: Update apt cache (for Stretch + backports)
+- name: Dist-upgrade Jessie → Stretch
   raw: |
     export DEBIAN_FRONTEND=noninteractive
     apt-get update -o Acquire::Check-Valid-Until=false
+    apt-get dist-upgrade -y \
+      -o Dpkg::Options::="--force-confdef" \
+      -o Dpkg::Options::="--force-confold"
   changed_when: false
 
-# 5) Raw-install Python 3.7 + keyring from backports
-- name: Install Python 3.7, venv, python3-apt & keyring (raw)
+- name: Reboot into Stretch
+  raw: reboot
+  async: 1
+  poll: 0
+
+- name: Wait for SSH after Stretch reboot
+  wait_for_connection:
+    delay: 10
+    timeout: 300
+
+
+# ─────────────────────────────────────────────────────────────
+# Phase 2: Stretch → Buster + bootstrap Python 3.7 & OpenSSH
+# ─────────────────────────────────────────────────────────────
+
+- name: Configure APT for Buster upgrade
+  raw: |
+    cat > /etc/apt/sources.list << 'EOF'
+    deb http://archive.debian.org/debian           buster         main contrib non-free
+    deb http://archive.debian.org/debian-security  buster/updates main contrib non-free
+    deb http://archive.debian.org/debian           buster-updates main
+    EOF
+  changed_when: false
+
+- name: Dist-upgrade Stretch → Buster
   raw: |
     export DEBIAN_FRONTEND=noninteractive
+    apt-get update -o Acquire::Check-Valid-Until=false
+    apt-get dist-upgrade -y \
+      -o Dpkg::Options::="--force-confdef" \
+      -o Dpkg::Options::="--force-confold"
+  changed_when: false
+
+- name: Reboot into Buster
+  raw: reboot
+  async: 1
+  poll: 0
+
+- name: Wait for SSH after Buster reboot
+  wait_for_connection:
+    delay: 10
+    timeout: 300
+
+- name: Install Python 3.7, venv, python3-apt & OpenSSH
+  raw: |
+    export DEBIAN_FRONTEND=noninteractive
+    apt-get update -o Acquire::Check-Valid-Until=false
     apt-get install -y --allow-unauthenticated \
       --no-install-recommends \
       -o Dpkg::Options::="--force-confdef" \
       -o Dpkg::Options::="--force-confold" \
-      -t stretch-backports \
-      python3.7 python3.7-venv python3.7-apt debian-archive-keyring
+      python3.7 python3.7-venv python3.7-apt openssh-server \
+      debian-archive-keyring
   changed_when: false
 
-- name: Give the new python time to settle
+- name: Pause for Python 3.7 to settle
   pause:
     seconds: 5
 
-# 6) Point Ansible at Python 3.7
-- name: Set ansible_python_interpreter to python3.7
+- name: Point Ansible at Python 3.7
   set_fact:
     ansible_python_interpreter: /usr/bin/python3.7
 
-# 7) Install OpenSSH under Python 3.7
-- name: Install OpenSSH server
+- name: Final reboot after bootstrapping Python
+  reboot:
+    msg: "Rebooting after Python 3.7 & OpenSSH install"
+    reboot_timeout: 300
+    test_command: uptime
+
+
+# ─────────────────────────────────────────────────────────────
+# Phase 3: Buster → Bullseye
+# ─────────────────────────────────────────────────────────────
+
+- name: Configure APT for Bullseye upgrade
+  copy:
+    dest: /etc/apt/sources.list
+    content: |
+      deb http://deb.debian.org/debian               bullseye        main contrib non-free
+      deb http://security.debian.org/debian-security bullseye-security main contrib non-free
+      deb http://deb.debian.org/debian               bullseye-updates main
+  notify: Update apt cache
+
+- name: Upgrade Buster → Bullseye
   apt:
-    name: openssh-server
-    state: present
     update_cache: yes
-    install_recommends: no
+    upgrade: dist
+    dpkg_options:
+      - "--force-confdef"
+      - "--force-confold"
 
-# 8) Generate an ED25519 keypair on the CONTROL node, once
-- name: Ensure we have a root ed25519 keypair (control machine)
-  delegate_to: localhost
-  local_action:
-    module: command
-    cmd: ssh-keygen -t ed25519 -f "{{ playbook_dir }}/files/root_id_ed25519" -N ''
-    creates: "{{ playbook_dir }}/files/root_id_ed25519"
+- name: Reboot into Bullseye
+  reboot:
+    msg: "Rebooting after upgrade to Bullseye"
+    reboot_timeout: 300
+    test_command: uptime
 
-# 9) Deploy the public key into root’s authorized_keys
-- name: Ensure /root/.ssh exists
-  file:
-    path: /root/.ssh
-    state: directory
-    owner: root
-    group: root
-    mode: '0700'
 
-- name: Install root’s ed25519 public key
-  authorized_key:
-    user: root
-    key: "{{ lookup('file', playbook_dir ~ '/files/root_id_ed25519.pub') }}"
-    state: present
+# ─────────────────────────────────────────────────────────────
+# Phase 4: Bullseye → Bookworm
+# ─────────────────────────────────────────────────────────────
+
+- name: Configure APT for Bookworm upgrade
+  copy:
+    dest: /etc/apt/sources.list
+    content: |
+      deb http://deb.debian.org/debian               bookworm        main contrib non-free
+      deb http://security.debian.org/debian-security bookworm-security main contrib non-free
+      deb http://deb.debian.org/debian               bookworm-updates main
+  notify: Update apt cache
+
+- name: Upgrade Bullseye → Bookworm
+  apt:
+    update_cache: yes
+    upgrade: dist
+    dpkg_options:
+      - "--force-confdef"
+      - "--force-confold"
+
+- name: Reboot into Bookworm
+  reboot:
+    msg: "Rebooting after upgrade to Bookworm"
+    reboot_timeout: 300
+    test_command: uptime
+
+
+# ─────────────────────────────────────────────────────────────
+# Handlers
+# ─────────────────────────────────────────────────────────────
+
+handlers:
+  - name: Update apt cache
+    apt:
+      update_cache: yes
