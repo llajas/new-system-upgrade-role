@@ -33,6 +33,7 @@
 # 4) Fetch the new index, install just enough to get Python 3 & keyring
 - name: Prime the keyring and install minimal Python & python-apt
   raw: |
+    export DEBIAN_FRONTEND=noninteractive
     apt-get update -o Acquire::Check-Valid-Until=false \
                    -o Acquire::AllowInsecureRepositories=true
 
