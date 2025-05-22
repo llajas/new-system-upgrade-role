@@ -1,85 +1,97 @@
 # ─────────────────────────────────────────────────────────────────────────────
-#  Copilot guidance – “cloudkey-ansible”
+#  Copilot guidance – “cloudkey-ansible” (revised)
 # ─────────────────────────────────────────────────────────────────────────────
 #
 #  Goal
 #  ────
-#  Build an Ansible project that turns a modified and repurposed UniFi CloudKey-Gen 2 Plus
-#  (Debian 8 Jessie, root-only, password auth) into a clean Debian 12 Bookworm
-#  host with:
-#    • proper SSH key-based access (root + user “red”)
+#  Turn a UniFi CloudKey-Gen2Plus (Debian 8 Jessie, root/password) into a
+#  clean Debian 12 Bookworm host with:
+#    • SSH key–only access (root + user “red”)
 #    • SSD (/dev/sda) formatted, mounted at /home
-#    • user “red” created with home on the SSD, supplied public-key, zsh later
-#    • in-place distro upgrades: 8→9→10→11→12 (reboot & wait each step)
-#    • chezmoi init for user red (run as root with sudo) **after** upgrade
+#    • user “red” on the SSD, public-key, zsh later
+#    • in-place dist-upgrades: 8→9→10→11→12 (reboot & wait each step)
+#    • chezmoi init for “red” after all upgrades
 #
-#  Repository layout to GENERATE
-#  ─────────────────────────────
+#  Repository layout
+#  ─────────────────
 #  .
-#  ├── inventory                       # static inventory with CloudKey IP/FQDN - Single host
-#  ├── site.yml                        # master play applying roles in order
-#  ├── playbooks/
-#  │   └── files/
-#  │       └── root_id_ed25519         # generated once by bootstrap
-#  │       └── root_id_ed25519.pub
+#  ├── inventory
+#  ├── site.yml
+#  ├── playbooks/files/
+#  │   └── root_id_ed25519{,.pub}
 #  └── roles/
-#      ├── bootstrap/
-#      │   ├── tasks/main.yml          # install python3 & openssh-server +
-#      │   │                           # generate 4096-bit ed25519 keypair on
-#      │   │                           # the *control* host, copy to root’s
-#      │   │                           # ~/.ssh/, set 600 perms
-#      │   └── files/                  # (keypair lives in playbooks/files)
+#      ├── bootstrap/           ← now only handles Jessie→Stretch→Buster
+#      │   └── tasks/main.yml
 #      ├── ssh_hardening/
-#      │   ├── tasks/main.yml          # deploy sshd_config, handler restart
-#      │   └── templates/sshd_config.j2
 #      ├── storage/
-#      │   └── tasks/main.yml          # single GPT part on /dev/sda,
-#      │                               # mkfs.ext4, fstab entry → /home
 #      ├── users/
-#      │   └── tasks/main.yml          # create user red, group wheel/sudo,
-#      │                               # home=/home/red, authorized_keys
-#      ├── upgrade/
-#      │   ├── tasks/main.yml          # include per-release tasks
-#      │   ├── tasks/stage-stretch.yml # 9  (Jessie → Stretch)
-#      │   ├── tasks/stage-buster.yml  # 10
-#      │   ├── tasks/stage-bullseye.yml# 11
-#      │   └── tasks/stage-bookworm.yml# 12  ← stop here
-#      │   └── templates/
-#      │       └── sources-{{ release }}.list.j2
+#      ├── upgrade/             ← Bullseye→Bookworm only
 #      └── chezmoi/
-#          └── tasks/main.yml          # become: red; run_once; chezmoi init
 #
 #  Play order (site.yml)
 #  =====================
-#    - bootstrap           # python + ssh; generates new root keypair
-#    - ssh_hardening       # push config; uses root key
-#    - storage             # prep SSD
-#    - users               # user red; create, home on SSD ; import existing ssh key
-#    - upgrade             # 8→…→12 ; tag=upgrade
-#    - chezmoi             # tag=chezmoi
+#  
+#  ● Phase 1: bootstrap → get Python 3.7+ on the remote
+#  
+#    - name: Bootstrap OS to Buster (raw Jessie→Stretch→Buster)
+#      hosts: cloudkey
+#      gather_facts: false
+#      tasks:
+#        - name: Point at Jessie → Stretch repos & puppy-grade apt.conf
+#          raw: >-
+#            cat > /etc/apt/apt.conf.d/99archive <<'EOF'
+#            Acquire { Check-Valid-Until "false"; AllowInsecureRepositories "true"; };
+#            EOF
+#            cat > /etc/apt/sources.list <<'EOF'
+#            deb http://archive.debian.org/debian           stretch        main contrib non-free
+#            deb http://archive.debian.org/debian-security  stretch/updates main contrib non-free
+#            EOF
+#        - name: dist-upgrade to Stretch
+#          raw: >-
+#            apt-get update -o Acquire::Check-Valid-Until=false
+#            DEBIAN_FRONTEND=noninteractive \
+#            apt-get dist-upgrade -y \
+#              -o Dpkg::Options::="--force-confdef" \
+#              -o Dpkg::Options::="--force-confold"
+#        - name: Reboot and wait
+#          reboot:
+#            reboot_timeout: 300
+#        - name: Point at Buster & pull in Python 3 + sshd
+#          raw: >-
+#            cat > /etc/apt/sources.list <<'EOF'
+#            deb http://archive.debian.org/debian           buster         main contrib non-free
+#            deb http://archive.debian.org/debian-security  buster/updates main contrib non-free
+#            EOF
+#        - name: apt-get install Python 3 & openssh-server
+#          raw: >-
+#            apt-get update -o Acquire::Check-Valid-Until=false
+#            DEBIAN_FRONTEND=noninteractive \
+#            apt-get install -y --allow-unauthenticated \
+#              python3 python3-apt openssh-server
+#        - name: Set up Ansible’s interpreter to Python 3
+#          set_fact:
+#            ansible_python_interpreter: /usr/bin/python3
 #
-#  Key behavioural rules
-#  ─────────────────────
-#  • All tasks idempotent.
-#  • Reboots: use `reboot:` module + `wait_for_connection` (300 s timeout).
-#  • sshd_config:
-#      PasswordAuthentication no
-#      PermitRootLogin prohibit-password
-#      AllowUsers root red
-#  • After bootstrap, subsequent plays must connect with the new root key
-#    (`ansible_ssh_private_key_file=playbooks/files/root_id_ed25519`).
-#  • Storage: single GPT partition on /dev/sda, ext4, mount at /home.
-#  • Users: create user red, group wheel/sudo, home=/home/red, authorized_keys should NOT use the key that was generated for root, but import an existing key.
-#  • Upgrades: render sources.list template for each release, then
-#      apt-get update && apt-get -y upgrade && apt-get -y dist-upgrade
-#      reboot
-#  • Stop after Bookworm; do NOT attempt usrmerge / Debian testing.
-#  • chezmoi init: run as root with sudo, but on behalf of/for the user red.
+#  ● Phase 2: normal Ansible with f-strings
 #
-#  Thanks!  Use the structure above exactly.
-#  External references:
-#  - https://xdaforums.com/t/unifi-cloud-key-gen-2-plus.4664639/
-#  - https://colincogle.name/blog/unifi-cloud-key-rescue/
-#  - https://fullduplextech.com/turn-unifi-cloud-key-gen-2-into-a-headless-linux-server/
-#  - https://raw.githubusercontent.com/jmewing/uckp-gen2/main/reinstall.sh
+#    - name: ssh_hardening       # now we have Python 3 on the remote
+#      hosts: cloudkey
+#      gather_facts: yes
+#      roles:
+#        - ssh_hardening
+#        - storage
+#        - users
+#        - { role: upgrade, tags: upgrade }
+#        - { role: chezmoi, tags: chezmoi }
+#
+#  Key points
+#  ──────────
+#  • Phase 1 uses only raw/dist-upgrade + reboot to reach an OS with Python 3.7+  
+#  • After reboot into Buster, we set `ansible_python_interpreter: /usr/bin/python3`  
+#  • Phase 2 can then use all the normal `apt:`, `file:`, `authorized_key:` modules  
+#  • The `upgrade/` role in Phase 2 only needs to handle Bullseye→Bookworm
+#  • Reboots in upgrade stages should use `reboot:` + `wait_for_connection` (300 s)
+#  • SSH keypair for root is still generated in bootstrap (Phase 2) and pushed  
+#  • User “red” is created + SSH key imported in the `users/` role
+#  • Storage is handled in `storage/`, etc.
 # ─────────────────────────────────────────────────────────────────────────────
