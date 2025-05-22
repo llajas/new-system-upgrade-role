@@ -7,13 +7,10 @@
 
 - name: Parse out VERSION_ID into current_release
   set_fact:
-    current_release: >-
-      {{
-        (os_release_raw.stdout
-         | regex_search('^VERSION_ID="?(.+?)"?$', r'\1', multiline=True)
-         | regex_replace('[\r\n"]', '')
-         | trim)
-      }}
+    current_release: "{{ os_release_raw.stdout
+                        | regex_search('^VERSION_ID=\"?(.+?)\"?$', '\\1', multiline=True)
+                        | regex_replace('[\\r\\n\"]', '')
+                        | trim }}"
 
 # ─────────────────────────────────────────────────────────────
 # Phase 1: Jessie (8) → Stretch (9)
