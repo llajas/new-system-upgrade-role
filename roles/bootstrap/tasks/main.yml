@@ -1,155 +1,177 @@
 ---
-# roles/upgrade/tasks/main.yml
-# ─────────────────────────────────────────────────────────────
-# Phase 1: Jessie → Stretch
-# ─────────────────────────────────────────────────────────────
-
-- name: Configure APT for Stretch upgrade
-  raw: |
-    cat > /etc/apt/apt.conf.d/99stretch-archive << 'EOF'
-    Acquire {
-      Check-Valid-Until "false";
-      AllowInsecureRepositories "true";
-    };
-    EOF
-
-    cat > /etc/apt/sources.list << 'EOF'
-    deb http://archive.debian.org/debian           stretch        main contrib non-free
-    deb http://archive.debian.org/debian-security  stretch/updates main contrib non-free
-    deb http://archive.debian.org/debian           stretch-updates main
-    EOF
+# 0) Read the local OS version out of /etc/os-release
+- name: Fetch /etc/os-release
+  raw: cat /etc/os-release
+  register: os_release_raw
   changed_when: false
 
-- name: Dist-upgrade Jessie → Stretch
-  raw: |
-    export DEBIAN_FRONTEND=noninteractive
-    apt-get update -o Acquire::Check-Valid-Until=false
-    apt-get dist-upgrade -y \
-      -o Dpkg::Options::="--force-confdef" \
-      -o Dpkg::Options::="--force-confold"
-  changed_when: false
-
-- name: Reboot into Stretch
-  raw: |
-    nohup reboot >/dev/null 2>&1 &
-    exit 0
-
-- name: Wait for SSH after Stretch reboot
-  wait_for_connection:
-    delay: 10
-    timeout: 300
-
-
-# ─────────────────────────────────────────────────────────────
-# Phase 2: Stretch → Buster + bootstrap Python 3.7 & OpenSSH
-# ─────────────────────────────────────────────────────────────
-
-- name: Configure APT for Buster upgrade
-  raw: |
-    cat > /etc/apt/sources.list << 'EOF'
-    deb http://archive.debian.org/debian           buster         main contrib non-free
-    deb http://archive.debian.org/debian-security  buster/updates main contrib non-free
-    deb http://archive.debian.org/debian           buster-updates main
-    EOF
-  changed_when: false
-
-- name: Dist-upgrade Stretch → Buster
-  raw: |
-    export DEBIAN_FRONTEND=noninteractive
-    apt-get update -o Acquire::Check-Valid-Until=false
-    apt-get dist-upgrade -y \
-      -o Dpkg::Options::="--force-confdef" \
-      -o Dpkg::Options::="--force-confold"
-  changed_when: false
-
-- name: Reboot into Buster
-  raw: |
-    nohup reboot >/dev/null 2>&1 &
-    exit 0
-
-- name: Wait for SSH after Buster reboot
-  wait_for_connection:
-    delay: 10
-    timeout: 300
-
-- name: Install Python 3.7, venv, python3-apt & OpenSSH
-  raw: |
-    export DEBIAN_FRONTEND=noninteractive
-    apt-get update -o Acquire::Check-Valid-Until=false
-    apt-get install -y --allow-unauthenticated \
-      --no-install-recommends \
-      -o Dpkg::Options::="--force-confdef" \
-      -o Dpkg::Options::="--force-confold" \
-      python3.7 python3.7-venv python3.7-apt openssh-server \
-      debian-archive-keyring
-  changed_when: false
-
-- name: Pause for Python 3.7 to settle
-  pause:
-    seconds: 5
-
-- name: Point Ansible at Python 3.7
+- name: Parse out VERSION_ID into current_release
   set_fact:
-    ansible_python_interpreter: /usr/bin/python3.7
+    current_release: "{{ (os_release_raw.stdout | regex_search('^VERSION_ID=\"?(.+?)\"?$', '\\1', multiline=True)) }}"
 
-- name: Final reboot after bootstrapping Python
-  reboot:
-    msg: "Rebooting after Python 3.7 & OpenSSH install"
-    reboot_timeout: 300
-    test_command: uptime
+# ─────────────────────────────────────────────────────────────
+# Phase 1: Jessie (8) → Stretch (9)
+# ─────────────────────────────────────────────────────────────
+- block:
+    - name: Configure APT for Stretch upgrade
+      raw: |
+        cat > /etc/apt/apt.conf.d/99stretch-archive << 'EOF'
+        Acquire {
+          Check-Valid-Until "false";
+          AllowInsecureRepositories "true";
+        };
+        EOF
 
+        cat > /etc/apt/sources.list << 'EOF'
+        deb http://archive.debian.org/debian           stretch        main contrib non-free
+        deb http://archive.debian.org/debian-security  stretch/updates main contrib non-free
+        deb http://archive.debian.org/debian           stretch-updates main
+        EOF
+      changed_when: false
+
+    - name: Dist-upgrade Jessie → Stretch
+      raw: |
+        export DEBIAN_FRONTEND=noninteractive
+        apt-get update -o Acquire::Check-Valid-Until=false
+        apt-get dist-upgrade -y \
+          -o Dpkg::Options::="--force-confdef" \
+          -o Dpkg::Options::="--force-confold"
+      changed_when: false
+
+    - name: Reboot into Stretch
+      raw: |
+        nohup reboot >/dev/null 2>&1 &
+        exit 0
+
+    - name: Wait for SSH after Stretch reboot
+      wait_for_connection:
+        delay: 10
+        timeout: 300
+  when: current_release == "8"
+
+# ─────────────────────────────────────────────────────────────
+# Phase 2: Stretch (9) → Buster (10)
+# ─────────────────────────────────────────────────────────────
+- block:
+    - name: Configure APT for Buster upgrade
+      raw: |
+        cat > /etc/apt/sources.list << 'EOF'
+        deb http://archive.debian.org/debian           buster         main contrib non-free
+        deb http://archive.debian.org/debian-security  buster/updates main contrib non-free
+        deb http://archive.debian.org/debian           buster-updates main
+        EOF
+      changed_when: false
+
+    - name: Dist-upgrade Stretch → Buster
+      raw: |
+        export DEBIAN_FRONTEND=noninteractive
+        apt-get update -o Acquire::Check-Valid-Until=false
+        apt-get dist-upgrade -y \
+          -o Dpkg::Options::="--force-confdef" \
+          -o Dpkg::Options::="--force-confold"
+      changed_when: false
+
+    - name: Reboot into Buster
+      raw: |
+        nohup reboot >/dev/null 2>&1 &
+        exit 0
+
+    - name: Wait for SSH after Buster reboot
+      wait_for_connection:
+        delay: 10
+        timeout: 300
+  when: current_release == "9"
+
+# ─────────────────────────────────────────────────────────────
+# Phase 2b: Bootstrap Python on Buster
+# ─────────────────────────────────────────────────────────────
+- block:
+    - name: Install Python 3.7, venv, python3-apt & OpenSSH
+      raw: |
+        export DEBIAN_FRONTEND=noninteractive
+        apt-get update -o Acquire::Check-Valid-Until=false
+        apt-get install -y --allow-unauthenticated \
+          --no-install-recommends \
+          -o Dpkg::Options::="--force-confdef" \
+          -o Dpkg::Options::="--force-confold" \
+          python3.7 python3.7-venv python3.7-apt openssh-server \
+          debian-archive-keyring
+      changed_when: false
+
+    - name: Pause for Python 3.7 to settle
+      pause:
+        seconds: 5
+
+    - name: Point Ansible at Python 3.7
+      set_fact:
+        ansible_python_interpreter: /usr/bin/python3.7
+
+    - name: Final reboot after bootstrapping Python
+      reboot:
+        msg: "Rebooting after Python 3.7 & OpenSSH install"
+        reboot_timeout: 300
+        test_command: uptime
+  when: current_release == "10"
+
+# Once Python is available, re-establish a Python-based connection
+- name: Re-gather facts now that Python is available
+  meta: reset_connection
+
+- name: Gather real facts
+  setup: {}
 
 # ─────────────────────────────────────────────────────────────
 # Phase 3: Buster → Bullseye
 # ─────────────────────────────────────────────────────────────
+- block:
+    - name: Configure APT for Bullseye upgrade
+      copy:
+        dest: /etc/apt/sources.list
+        content: |
+          deb http://deb.debian.org/debian               bullseye        main contrib non-free
+          deb http://security.debian.org/debian-security bullseye-security main contrib non-free
+          deb http://deb.debian.org/debian               bullseye-updates main
+      notify: Update apt cache
 
-- name: Configure APT for Bullseye upgrade
-  copy:
-    dest: /etc/apt/sources.list
-    content: |
-      deb http://deb.debian.org/debian               bullseye        main contrib non-free
-      deb http://security.debian.org/debian-security bullseye-security main contrib non-free
-      deb http://deb.debian.org/debian               bullseye-updates main
-  notify: Update apt cache
+    - name: Upgrade Buster → Bullseye
+      apt:
+        update_cache: yes
+        upgrade: dist
+        dpkg_options:
+          - "--force-confdef"
+          - "--force-confold"
 
-- name: Upgrade Buster → Bullseye
-  apt:
-    update_cache: yes
-    upgrade: dist
-    dpkg_options:
-      - "--force-confdef"
-      - "--force-confold"
-
-- name: Reboot into Bullseye
-  reboot:
-    msg: "Rebooting after upgrade to Bullseye"
-    reboot_timeout: 300
-    test_command: uptime
-
+    - name: Reboot into Bullseye
+      reboot:
+        msg: "Rebooting after upgrade to Bullseye"
+        reboot_timeout: 300
+        test_command: uptime
+  when: ansible_distribution_release == "buster"
 
 # ─────────────────────────────────────────────────────────────
 # Phase 4: Bullseye → Bookworm
 # ─────────────────────────────────────────────────────────────
+- block:
+    - name: Configure APT for Bookworm upgrade
+      copy:
+        dest: /etc/apt/sources.list
+        content: |
+          deb http://deb.debian.org/debian               bookworm        main contrib non-free
+          deb http://security.debian.org/debian-security bookworm-security main contrib non-free
+          deb http://deb.debian.org/debian               bookworm-updates main
+      notify: Update apt cache
 
-- name: Configure APT for Bookworm upgrade
-  copy:
-    dest: /etc/apt/sources.list
-    content: |
-      deb http://deb.debian.org/debian               bookworm        main contrib non-free
-      deb http://security.debian.org/debian-security bookworm-security main contrib non-free
-      deb http://deb.debian.org/debian               bookworm-updates main
-  notify: Update apt cache
+    - name: Upgrade Bullseye → Bookworm
+      apt:
+        update_cache: yes
+        upgrade: dist
+        dpkg_options:
+          - "--force-confdef"
+          - "--force-confold"
 
-- name: Upgrade Bullseye → Bookworm
-  apt:
-    update_cache: yes
-    upgrade: dist
-    dpkg_options:
-      - "--force-confdef"
-      - "--force-confold"
-
-- name: Reboot into Bookworm
-  reboot:
-    msg: "Rebooting after upgrade to Bookworm"
-    reboot_timeout: 300
-    test_command: uptime
+    - name: Reboot into Bookworm
+      reboot:
+        msg: "Rebooting after upgrade to Bookworm"
+        reboot_timeout: 300
+        test_command: uptime
+  when: ansible_distribution_release == "bullseye"
