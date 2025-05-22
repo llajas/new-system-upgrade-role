@@ -18,7 +18,13 @@
     EOF
 
     cat > /etc/apt/sources.list <<'EOF'
+    # Debian 8 (Jessie) main archive
     deb http://archive.debian.org/debian           jessie        main contrib non-free
+
+    # Point at the jessie-updates archive
+    deb http://archive.debian.org/debian           jessie-updates main contrib non-free
+
+    # The archived security repo for Jessie
     deb http://archive.debian.org/debian-security  jessie/updates main contrib non-free
     EOF
   changed_when: false
