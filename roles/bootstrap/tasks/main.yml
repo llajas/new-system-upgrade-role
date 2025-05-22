@@ -1,4 +1,9 @@
 ---
+- name: Import missing GPG keys for Debian repositories (raw)
+  raw: |
+    apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 0E98404D386FA1D9 6ED0E7B82643E131
+  changed_when: false
+
 - name: Ensure apt keyring is installed (raw)
   raw: |
     apt-get update && apt-get install -y debian-archive-keyring
