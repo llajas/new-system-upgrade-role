@@ -9,9 +9,8 @@
   set_fact:
     current_release: >-
       {{ (os_release_raw.stdout
-          | regex_search('^VERSION_ID="?(.+?)"?$', '\\1', multiline=True)
-         )[0]
-         | trim }}
+               | regex_findall('^VERSION_ID="?(.+?)"?$', multiline=True)
+             )[0] }}
 
 # ─────────────────────────────────────────────────────────────
 # Phase 1: Jessie (8) → Stretch (9)
