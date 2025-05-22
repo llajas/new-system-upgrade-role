@@ -50,6 +50,7 @@
       wait_for_connection:
         delay: 10
         timeout: 300
+        test_command: uptime
   when: current_release | int == 8
 
 # ─────────────────────────────────────────────────────────────
@@ -79,10 +80,11 @@
         nohup reboot >/dev/null 2>&1 &
         exit 0
 
-    - name: Wait for SSH after Buster reboot
+    - name: Wait for SSH port to open after Buster reboot
       wait_for_connection:
         delay: 10
         timeout: 300
+        test_command: uptime
   when: current_release | int == 9
 
 # ─────────────────────────────────────────────────────────────
