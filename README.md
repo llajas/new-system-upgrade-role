@@ -4,7 +4,7 @@ This project automates the conversion of a repurposed UniFi CloudKey-Gen 2 Plus 
 
 - **Proper SSH key–based access** for both root and a user (default: `red`)
 - **SSD setup**: formats `/dev/sda` with a single GPT partition and mounts it at `/home`
-- **User creation**: creates user `red` (or a custom `target_user`) with home on the SSD and imports existing SSH keys
+- **User creation**: Creates a user (configured via the `target_user` variable) with home on the SSD and imports existing SSH keys.
 - **In-place distro upgrades**: sequentially upgrading through Debian releases (8 → 9 → 10 → 11 → 12) with reboots and wait for connection
 - **chezmoi initialization**: runs as root (with sudo) on behalf of the user for post-upgrade configuration  
   (Uses a provided GitHub username to pull configuration)

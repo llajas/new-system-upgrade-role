@@ -10,14 +10,14 @@
   loop_control:
     loop_var: rel
   block:
-    - name: Render sources.list for release {{ rel }}
+    - name: Render sources.list for release {{ release }}
       template:
-        src: "templates/sources-{{ rel }}.list.j2"
+        src: "templates/sources-{{ release }}.list.j2"
         dest: /etc/apt/sources.list
       vars:
-        release: "{{ rel }}"
+        release: "{{ release }}"
 
-    - name: Upgrade packages to {{ rel }}
+    - name: Upgrade packages to {{ release }}
       apt:
         update_cache: yes
         upgrade: yes
@@ -25,7 +25,7 @@
       environment:
         DEBIAN_FRONTEND: noninteractive
 
-    - name: Reboot after upgrading to {{ rel }}
+    - name: Reboot after upgrading to {{ release }}
       reboot:
-        msg: "Rebooting after upgrade to {{ rel }}"
+        msg: "Rebooting after upgrade to {{ release }}"
         reboot_timeout: 300

@@ -1,6 +1,6 @@
 - name: Set target user fact
   set_fact:
-    target: "{{ target_user | default('red') }}"
+    target: "{{ target_user }}"   # now no default is provided
 
 - name: Create user {{ target }} with home on /home/{{ target }}
   user:
