@@ -112,9 +112,14 @@
         ansible_python_interpreter: /usr/bin/python3.7
 
     - name: Final reboot after bootstrapping Python
-      reboot:
-        msg: "Rebooting after Python 3.7 & OpenSSH install"
-        reboot_timeout: 300
+      raw: shutdown -r now "Rebooting after Python 3.x & OpenSSH install"
+      async: 1
+      poll: 0
+
+    - name: Wait for SSH + raw uptime test post-bootstrap
+      wait_for_connection:
+        delay: 10
+        timeout: 300
         test_command: uptime
   when: current_release | int == 10
 
