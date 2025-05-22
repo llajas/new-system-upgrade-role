@@ -4,6 +4,9 @@
     apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 0E98404D386FA1D9 6ED0E7B82643E131
   changed_when: false
 
+- name: Wipe out any existing sources list files
+  raw: rm -f /etc/apt/sources.list /etc/apt/sources.list.d/* || true
+
 - name: Configure jessie archive repositories (raw)
   raw: |-
     echo 'Acquire::Check-Valid-Until "false";' > /etc/apt/apt.conf.d/99jessie-archive
