@@ -4,6 +4,13 @@
     apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 0E98404D386FA1D9 6ED0E7B82643E131
   changed_when: false
 
+- name: Configure jessie archive repositories (raw)
+  raw: |
+    echo "deb http://archive.debian.org/debian jessie main" > /etc/apt/sources.list.d/jessie.list
+    echo "deb http://archive.debian.org/debian jessie-updates main" >> /etc/apt/sources.list.d/jessie.list
+    echo "deb http://security.debian.org/debian-security jessie/updates main" >> /etc/apt/sources.list.d/jessie.list
+  changed_when: false
+
 - name: Ensure apt keyring is installed (raw) with Jessie pinning
   raw: |
     apt-get update && apt-get install -y --no-install-recommends -o APT::Default-Release=jessie debian-archive-keyring
