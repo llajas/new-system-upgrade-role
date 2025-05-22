@@ -103,6 +103,10 @@
           debian-archive-keyring
       changed_when: false
 
+    - name: remove UseDNS from sshd Configure (raw)
+      raw: |
+        sed -i '/^UseDNS/d' /etc/ssh/sshd_config
+
     - name: Pause for Python 3.7 to settle
       pause:
         seconds: 5
@@ -112,9 +116,8 @@
         ansible_python_interpreter: /usr/bin/python3.7
 
     - name: Final reboot after bootstrapping Python
-      raw: shutdown -r now "Rebooting after Python 3.x & OpenSSH install"
-      async: 1
-      poll: 0
+      raw: |
+        nohup shutdown -r now "Rebooting after Python bootstrap" >/dev/null 2>&1 &
 
     - name: Wait for SSH + raw uptime test post-bootstrap
       wait_for_connection:
