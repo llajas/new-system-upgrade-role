@@ -18,20 +18,29 @@
 - name: Ensure apt keyring is installed (raw) with Jessie pinning
   raw: |
     apt-get update -o Acquire::Check-Valid-Until=false && apt-get install -y --no-install-recommends -o APT::Default-Release=jessie debian-archive-keyring || true
-  changed_when: false
 
 - name: Ensure minimal python3 is installed (raw) with Jessie pinning
   raw: |
-    apt-get update -o Acquire::Check-Valid-Until=false && apt-get install -y --no-install-recommends -o APT::Default-Release=jessie python3-minimal || true
-  changed_when: false
-
+    apt-get update -o Acquire::Check-Valid-Until=false && apt-get install -y --no-install-recommends -o APT::Default-Release=jessie python3-minimal
+     
 - name: Pause for 10 seconds to allow python3 installation to settle
   pause:
     seconds: 10
 
-- name: Set the Python interpreter for future tasks
+- name: Locate the installed python3 interpreter
+  raw: which python3 || true
+  register: python3_location
+  changed_when: false
+
+- name: Set the Python interpreter for future tasks if found
   set_fact:
-    ansible_python_interpreter: /usr/bin/python3
+    ansible_python_interpreter: "{{ python3_location.stdout | trim }}"
+  when: python3_location.stdout | trim != ""
+
+- name: Fail if no python3 interpreter was found
+  fail:
+    msg: "python3 was not found after installation"
+  when: python3_location.stdout | trim == ""
 
 - name: Install full python3 and openssh-server (APT pinned to Jessie)
   apt:
