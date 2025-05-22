@@ -1,8 +1,10 @@
 - hosts: cloudkey
   remote_user: root
   become: yes
+  vars:
+    ansible_ssh_pass: "{{ lookup('env', 'ANSIBLE_PASSWORD') }}"
   # For bootstrap and SSH hardening, we continue to use password login.
-  # Supply ansible_password externally (e.g. via inventory, environment variable, or extra-vars).
+  # Supply ANSIBLE_PASSWORD in your environment.
   roles:
     - bootstrap
     - ssh_hardening
