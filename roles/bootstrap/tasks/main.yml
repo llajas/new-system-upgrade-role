@@ -61,17 +61,30 @@
     msg: "python3 was not found on the remote after bootstrap!"
   when: _py3.stdout | trim == ""
 
+# (Insert this new task before the apt task that installs full Python)
+- name: Add Debian Stretch backports repository for Python 3.7 and related packages
+  copy:
+    dest: /etc/apt/sources.list.d/stretch-backports.list
+    content: |
+      deb http://deb.debian.org/debian stretch-backports main
+  changed_when: false
+
+- name: Refresh apt cache after adding backports
+  apt:
+    update_cache: yes
+
 # 6) Switch to the normal apt: module now that Python exists
-- name: Install full python3, python3-apt and openssh-server
+- name: Install full python3.7, python3.7-venv, python3.7-apt and openssh-server
   apt:
     name:
-      - python3
-      - python3-apt
+      - python3.7
+      - python3.7-venv
+      - python3.7-apt
       - openssh-server
     state: latest
     update_cache: yes
     install_recommends: no
-    default_release: stretch
+    default_release: stretch-backports
 
 # 7) Generate an ED25519 keypair on the CONTROL node, once
 - name: Ensure we have a root ed25519 keypair (control machine)
