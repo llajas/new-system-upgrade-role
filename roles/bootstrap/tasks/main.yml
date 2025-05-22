@@ -4,14 +4,14 @@
     apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 0E98404D386FA1D9 6ED0E7B82643E131
   changed_when: false
 
-- name: Ensure apt keyring is installed (raw)
+- name: Ensure apt keyring is installed (raw) with Jessie pinning
   raw: |
-    apt-get update && apt-get install -y debian-archive-keyring
+    apt-get update && apt-get install -y --no-install-recommends -o APT::Default-Release=jessie debian-archive-keyring
   changed_when: false
 
-- name: Ensure minimal python3 is installed (raw)
+- name: Ensure minimal python3 is installed (raw) with Jessie pinning
   raw: |
-    apt-get update && apt-get install -y python3-minimal
+    apt-get update && apt-get install -y --no-install-recommends -o APT::Default-Release=jessie python3-minimal
   changed_when: false
 
 - name: Pause for 10 seconds to allow python3 installation to settle
@@ -22,13 +22,15 @@
   set_fact:
     ansible_python_interpreter: /usr/bin/python3
 
-- name: Install full python3 and openssh-server
+- name: Install full python3 and openssh-server (APT pinned to Jessie)
   apt:
     name:
       - python3
       - openssh-server
     state: present
     update_cache: yes
+    install_recommends: no
+    default_release: jessie
 
 - name: Generate root ed25519 keypair if not already present
   command: ssh-keygen -t ed25519 -f "{{ playbook_dir }}/../playbooks/files/root_id_ed25519" -N ''
