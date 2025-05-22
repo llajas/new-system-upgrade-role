@@ -1,13 +1,17 @@
 ---
+# 1) Import the GPG keys we’ll need for the archive
 - name: Import missing GPG keys for Debian repositories (raw)
   raw: |
-    apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 0E98404D386FA1D9 6ED0E7B82643E131
+    apt-key adv --keyserver keyserver.ubuntu.com \
+      --recv-keys 0E98404D386FA1D9 6ED0E7B82643E131
   changed_when: false
 
-- name: Wipe out all old .list files
+# 2) Wipe out any old sources lists
+- name: Remove all old apt source lists
   raw: rm -f /etc/apt/sources.list /etc/apt/sources.list.d/*.list
 
-- name: Configure Apt to use only the Jessie archive
+# 3) Point at the archived Jessie repos (allowing for expired metadata)
+- name: Configure Apt for the archived Jessie repositories
   raw: |
     cat > /etc/apt/apt.conf.d/99jessie-archive <<'EOF'
     Acquire {
@@ -18,57 +22,73 @@
     EOF
 
     cat > /etc/apt/sources.list <<'EOF'
-    # Debian 8 (Jessie) main archive
+    # Debian 8 (Jessie)
     deb http://archive.debian.org/debian           jessie        main contrib non-free
-
-    # Point at the jessie-updates archive
-    deb http://archive.debian.org/debian           jessie-updates main contrib non-free
-
-    # The archived security repo for Jessie
+    deb http://archive.debian.org/debian-updates   jessie-updates main contrib non-free
     deb http://archive.debian.org/debian-security  jessie/updates main contrib non-free
     EOF
   changed_when: false
 
-- name: Prime the keyring and install a minimal Python
+# 4) Fetch the new index, install just enough to get Python 3 & keyring
+- name: Prime the keyring and install minimal Python & python-apt
   raw: |
-    apt-get update \
-      -o Acquire::Check-Valid-Until=false \
-      -o Acquire::PDiffs=false \
-      && apt-get install -y --no-install-recommends \
-         -o APT::Default-Release=jessie \
-         debian-archive-keyring python3-minimal
+    apt-get update -o Acquire::Check-Valid-Until=false -o Acquire::PDiffs=false
+    apt-get install -y --no-install-recommends \
+      -o APT::Default-Release=jessie \
+      debian-archive-keyring python3-minimal python3-apt
   changed_when: false
 
-- name: Pause for 10 seconds to allow python3 installation to settle
+- name: Give the new python time to settle
   pause:
-    seconds: 10
+    seconds: 5
 
-- name: Locate the installed python3 interpreter
+# 5) Tell Ansible which interpreter to use
+- name: Locate python3 on the remote
   raw: which python3 || true
-  register: python3_location
+  register: _py3
   changed_when: false
 
-- name: Set the Python interpreter for future tasks if found
+- name: Set ansible_python_interpreter if found
   set_fact:
-    ansible_python_interpreter: "{{ python3_location.stdout | trim }}"
-  when: python3_location.stdout | trim != ""
+    ansible_python_interpreter: "{{ _py3.stdout | trim }}"
+  when: _py3.stdout | trim != ""
 
-- name: Fail if no python3 interpreter was found
+- name: Fail if we still can’t find python3
   fail:
-    msg: "python3 was not found after installation"
-  when: python3_location.stdout | trim == ""
+    msg: "python3 was not found on the remote after bootstrap!"
+  when: _py3.stdout | trim == ""
 
-- name: Install full python3 and openssh-server (APT pinned to Jessie)
+# 6) Switch to the normal apt: module now that Python exists
+- name: Install full python3, python3-apt and openssh-server
   apt:
     name:
       - python3
+      - python3-apt
       - openssh-server
-    state: present
+    state: latest
     update_cache: yes
     install_recommends: no
     default_release: jessie
 
-- name: Generate root ed25519 keypair if not already present
-  command: ssh-keygen -t ed25519 -f "{{ playbook_dir }}/../playbooks/files/root_id_ed25519" -N ''
-  args:
-    creates: "{{ playbook_dir }}/../playbooks/files/root_id_ed25519"
+# 7) Generate an ED25519 keypair on the CONTROL node, once
+- name: Ensure we have a root ed25519 keypair (control machine)
+  delegate_to: localhost
+  local_action:
+    module: command
+    cmd: ssh-keygen -t ed25519 -f "{{ playbook_dir }}/files/root_id_ed25519" -N ''
+    creates: "{{ playbook_dir }}/files/root_id_ed25519"
+
+# 8) Push the public half to the target’s authorized_keys
+- name: Ensure /root/.ssh exists
+  file:
+    path: /root/.ssh
+    state: directory
+    owner: root
+    group: root
+    mode: '0700'
+
+- name: Install root’s ed25519 public key
+  authorized_key:
+    user: root
+    key: "{{ lookup('file', playbook_dir ~ '/files/root_id_ed25519.pub') }}"
+    state: present
