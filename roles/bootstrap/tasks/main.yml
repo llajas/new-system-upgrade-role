@@ -1,7 +1,7 @@
 ---
 - name: Import missing GPG keys for Debian repositories (raw)
   raw: |
-    apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 0E98404D386FA1D9 6ED0E7B82643E131
+    apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 0E98404D386FA1D9 6ED0E7B82643E131
   changed_when: false
 
 - name: Configure jessie archive repositories (raw)
