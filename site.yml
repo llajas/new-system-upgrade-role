@@ -1,0 +1,18 @@
+- hosts: cloudkey
+  become: yes
+   # For bootstrap and SSH hardening, we continue to use password login.
+  # Supply ansible_password externally (e.g. via inventory or extra vars).
+  roles:
+    - bootstrap
+    - ssh_hardening
+
+- hosts: cloudkey
+  become: yes
+  vars:
+    # Pivot to SSH key–based authentication for subsequent plays.
+    ansible_ssh_private_key_file: playbooks/files/root_id_ed25519
+  roles:
+    - storage
+    - users
+    - upgrade
+    - chezmoi

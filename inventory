@@ -1,0 +1,9 @@
+[cloudkey]
+goldenrod.johto.lajas.tech
+
+[cloudkey:vars]
+target_user=red
+public_key_file=playbooks/files/red_id_ed25519.pub
+private_key_file=playbooks/files/red_id_ed25519
+ssh_key_suffix=id_ed25519
+github_username=llajas

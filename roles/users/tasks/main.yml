@@ -1,0 +1,35 @@
+- name: Set target user fact
+  set_fact:
+    target: "{{ target_user | default('red') }}"
+
+- name: Create user {{ target }} with home on /home/{{ target }}
+  user:
+    name: "{{ target }}"
+    comment: "User {{ target }} with home on SSD"
+    home: "/home/{{ target }}"
+    shell: /usr/bin/zsh
+    groups: wheel
+    state: present
+    create_home: yes
+
+- name: Ensure .ssh directory exists for user {{ target }}
+  file:
+    path: "/home/{{ target }}/.ssh"
+    state: directory
+    owner: "{{ target }}"
+    group: "{{ target }}"
+    mode: '0700'
+
+- name: Install SSH key files for user {{ target }}
+  vars:
+    ssh_keys:
+      - { key_var: "public_key_file", dest: "/home/{{ target }}/.ssh/authorized_keys", mode: "0600" }
+      - { key_var: "private_key_file", dest: "/home/{{ target }}/.ssh/{{ target }}_{{ ssh_key_suffix | default('id_rsa') }}", mode: "0600" }
+  loop: "{{ ssh_keys }}"
+  copy:
+    content: "{{ lookup('file', lookup('vars', item.key_var)) }}"
+    dest: "{{ item.dest }}"
+    owner: "{{ target }}"
+    group: "{{ target }}"
+    mode: "{{ item.mode }}"
+  when: lookup('vars', item.key_var, default='') != ''

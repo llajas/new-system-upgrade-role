@@ -1,0 +1,10 @@
+- name: Initialize chezmoi and run subsequent commands non-interactively
+  become: yes
+  become_user: "{{ target_user | default('red') }}"
+  shell: |
+    set -e
+    sh -c "$(curl -fsLS get.chezmoi.io)" -- init --apply {{ github_username }}
+    # Now run your additional commands here in the same context
+    echo "Post-chezmoi commands running"
+  args:
+    chdir: "/home/{{ target_user | default('red') }}"

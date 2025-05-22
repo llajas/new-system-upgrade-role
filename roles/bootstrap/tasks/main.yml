@@ -1,0 +1,13 @@
+---
+- name: Install python3 and openssh-server
+  apt:
+    name:
+      - python3
+      - openssh-server
+    state: present
+    update_cache: yes
+
+- name: Generate root ed25519 keypair if not already present
+  command: ssh-keygen -t ed25519 -f "{{ playbook_dir }}/../playbooks/files/root_id_ed25519" -N ''
+  args:
+    creates: "{{ playbook_dir }}/../playbooks/files/root_id_ed25519"

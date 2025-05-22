@@ -1,0 +1,23 @@
+---
+- name: Create a single GPT partition on /dev/sda
+  parted:
+    device: /dev/sda
+    label: gpt
+    number: 1
+    state: present
+    part_start: 1MiB
+    part_end: 100%
+    fs_type: ext4
+
+- name: Format the partition as ext4 if needed
+  filesystem:
+    fstype: ext4
+    dev: /dev/sda1
+
+- name: Ensure /home is mounted from /dev/sda1
+  mount:
+    path: /home
+    src: /dev/sda1
+    fstype: ext4
+    opts: defaults
+    state: present

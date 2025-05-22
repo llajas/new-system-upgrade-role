@@ -1,0 +1,31 @@
+---
+- name: Upgrade OS through sequential releases
+  vars:
+    releases:
+      - stretch
+      - buster
+      - bullseye
+      - bookworm
+  loop: "{{ releases }}"
+  loop_control:
+    loop_var: rel
+  block:
+    - name: Render sources.list for release {{ rel }}
+      template:
+        src: "templates/sources-{{ rel }}.list.j2"
+        dest: /etc/apt/sources.list
+      vars:
+        release: "{{ rel }}"
+
+    - name: Upgrade packages to {{ rel }}
+      apt:
+        update_cache: yes
+        upgrade: yes
+        dist: yes
+      environment:
+        DEBIAN_FRONTEND: noninteractive
+
+    - name: Reboot after upgrading to {{ rel }}
+      reboot:
+        msg: "Rebooting after upgrade to {{ rel }}"
+        reboot_timeout: 300
