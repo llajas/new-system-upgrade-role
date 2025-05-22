@@ -1,26 +1,13 @@
 ---
 # 0) Read the local OS version out of /etc/os-release
-- name: Fetch /etc/os-release
-  raw: cat /etc/os-release
-  register: os_release_raw
+- name: Get VERSION_ID from /etc/os-release by sourcing the file
+  raw: ". /etc/os-release && echo $VERSION_ID"
+  register: current_release_raw
   changed_when: false
 
-- name: Parse out VERSION_ID into current_release
+- name: Set current_release from raw stdout
   set_fact:
-    current_release: >-
-      {{
-        os_release_raw.stdout
-          # split into lines
-          | split('\n')
-          # select only the line that starts with VERSION_ID
-          | select('match', '^VERSION_ID')
-          | list
-          # pick the first (and only) match
-          | first
-          # strip off everything but the digits in the value
-          | regex_replace('^VERSION_ID="?([0-9]+)"?$', '\\1')
-      }}
-
+    current_release: "{{ current_release_raw.stdout }}"
 
 - name: Print current_release
   debug:
