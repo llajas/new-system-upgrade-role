@@ -8,9 +8,19 @@
 - name: Parse out VERSION_ID into current_release
   set_fact:
     current_release: >-
-      {{ (os_release_raw.stdout
-               | regex_findall('^VERSION_ID="?([0-9]+)"?$', multiline=True)
-             )[0] }}
+      {{
+        os_release_raw.stdout
+          # split into lines
+          | split('\n')
+          # select only the line that starts with VERSION_ID
+          | select('match', '^VERSION_ID')
+          | list
+          # pick the first (and only) match
+          | first
+          # strip off everything but the digits in the value
+          | regex_replace('^VERSION_ID="?([0-9]+)"?$', '\\1')
+      }}
+
 
 - name: Print current_release
   debug:
