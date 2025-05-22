@@ -30,9 +30,9 @@
   changed_when: false
 
 - name: Reboot into Stretch
-  raw: reboot
-  async: 1
-  poll: 0
+  raw: |
+    nohup reboot >/dev/null 2>&1 &
+    exit 0
 
 - name: Wait for SSH after Stretch reboot
   wait_for_connection:
@@ -63,9 +63,9 @@
   changed_when: false
 
 - name: Reboot into Buster
-  raw: reboot
-  async: 1
-  poll: 0
+  raw: |
+    nohup reboot >/dev/null 2>&1 &
+    exit 0
 
 - name: Wait for SSH after Buster reboot
   wait_for_connection:
