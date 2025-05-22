@@ -1,5 +1,6 @@
 - hosts: cloudkey
   remote_user: root
+  gather_facts: no
   become: yes
   vars:
     ansible_ssh_pass: "{{ lookup('env', 'ANSIBLE_PASSWORD') }}"
