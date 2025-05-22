@@ -20,12 +20,11 @@
 #  ├── playbooks/files/
 #  │   └── root_id_ed25519{,.pub}
 #  └── roles/
-#      ├── bootstrap/           ← now only handles Jessie→Stretch→Buster
+#      ├── bootstrap/           ← handles Jessie→Stretch→Buster then pivots from raw requests to using a python interpreter as ansible needs python 3.7 which isn't available until we're on the buster release
 #      │   └── tasks/main.yml
 #      ├── ssh_hardening/
 #      ├── storage/
 #      ├── users/
-#      ├── upgrade/             ← Bullseye→Bookworm only
 #      └── chezmoi/
 #
 #  Play order (site.yml)
@@ -71,6 +70,8 @@
 #        - name: Set up Ansible’s interpreter to Python 3
 #          set_fact:
 #            ansible_python_interpreter: /usr/bin/python3
+#
+#  Then we proceed with further os release upgrades but now using the python interpreter so we're no longer making raw requests
 #
 #  ● Phase 2: normal Ansible with f-strings
 #
