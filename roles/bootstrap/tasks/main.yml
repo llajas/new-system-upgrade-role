@@ -11,7 +11,7 @@
   raw: rm -f /etc/apt/sources.list /etc/apt/sources.list.d/*.list
   changed_when: false
 
-# 3) Point at the archived Stretch + backports repos
+# 3) Point at the archived Stretch + backports repos (no more stretch-updates)
 - name: Configure Apt for archived Stretch & backports
   raw: |
     cat > /etc/apt/apt.conf.d/99stretch-archive << 'EOF'
@@ -25,11 +25,11 @@
     cat > /etc/apt/sources.list << 'EOF'
     # Debian 9 (Stretch) main archive
     deb http://archive.debian.org/debian           stretch           main contrib non-free
-    # Stretch security
+
+    # Stretch security (also archived)
     deb http://archive.debian.org/debian-security  stretch/updates   main contrib non-free
-    # Stretch updates
-    deb http://archive.debian.org/debian           stretch-updates   main contrib non-free
-    # Backports for Stretch (contains Python 3.7)
+
+    # Stretch backports (for Python 3.7, etc)
     deb http://archive.debian.org/debian           stretch-backports main contrib non-free
     EOF
   changed_when: false
@@ -62,7 +62,7 @@
   set_fact:
     ansible_python_interpreter: /usr/bin/python3.7
 
-# 7) Now we can safely use the normal apt: module under Python 3.7
+# 7) Install OpenSSH under Python 3.7
 - name: Install OpenSSH server
   apt:
     name: openssh-server
