@@ -4,19 +4,18 @@
   become: yes
   vars:
     ansible_ssh_pass: "{{ lookup('env', 'ANSIBLE_PASSWORD') }}"
-  # For bootstrap and SSH hardening, we continue to use password login.
-  # Supply ANSIBLE_PASSWORD in your environment.
   roles:
     - bootstrap
-    - ssh_hardening
 
 - hosts: cloudkey
   remote_user: root
+  gather_facts: yes
   become: yes
   vars:
-    # Pivot to SSH key–based authentication for subsequent plays.
     ansible_ssh_private_key_file: playbooks/files/root_id_ed25519
+    ansible_python_interpreter: /usr/bin/python3
   roles:
+    - ssh_hardening
     - storage
     - users
     - upgrade
