@@ -43,8 +43,7 @@
 
     - name: Reboot into Stretch
       raw: |
-        nohup reboot >/dev/null 2>&1 &
-        exit 0
+        nohup /sbin/shutdown -r now </dev/null >/dev/null 2>&1 &
 
     - name: Wait for SSH port to be open (run on control node)
       wait_for:
@@ -53,6 +52,7 @@
         delay: 10
         timeout: 300
       delegate_to: localhost
+      become: false
 
     - name: Wait for shell to actually accept commands
       raw: uptime
@@ -86,8 +86,7 @@
 
     - name: Reboot into Buster
       raw: |
-        nohup reboot >/dev/null 2>&1 &
-        exit 0
+        nohup /sbin/shutdown -r now </dev/null >/dev/null 2>&1 &
 
     - name: Wait for SSH port to be open (run on control node)
       wait_for:
@@ -96,6 +95,7 @@
         delay: 10
         timeout: 300
       delegate_to: localhost
+      become: false
 
     - name: Wait for shell to actually accept commands
       raw: uptime
@@ -135,7 +135,7 @@
 
     - name: Final reboot after bootstrapping Python
       raw: |
-        nohup shutdown -r now "Rebooting after Python bootstrap" >/dev/null 2>&1 &
+        nohup /sbin/shutdown -r now </dev/null >/dev/null 2>&1 &
 
     - name: Wait for SSH port to be open (run on control node)
       wait_for:
@@ -144,6 +144,7 @@
         delay: 10
         timeout: 300
       delegate_to: localhost
+      become: false
 
     - name: Wait for shell to actually accept commands
       raw: uptime
