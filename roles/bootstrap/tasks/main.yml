@@ -10,10 +10,10 @@
 - name: Remove all old apt source lists
   raw: rm -f /etc/apt/sources.list /etc/apt/sources.list.d/*.list
 
-# 3) Point at the archived Jessie repos (allowing for expired metadata)
-- name: Configure Apt for the archived Jessie repositories
+# 3) Point at the archived Stretch repos (allowing for expired metadata)
+- name: Configure Apt for the archived Stretch repositories
   raw: |
-    cat > /etc/apt/apt.conf.d/99jessie-archive << 'EOF'
+    cat > /etc/apt/apt.conf.d/99stretch-archive << 'EOF'
     Acquire {
       Check-Valid-Until "false";
       AllowInsecureRepositories "true";
@@ -22,11 +22,9 @@
     EOF
 
     cat > /etc/apt/sources.list << 'EOF'
-    # Debian 8 (Jessie) — main archive
-    deb [trusted=yes] http://archive.debian.org/debian           jessie        main contrib non-free
-
-    # Debian 8 security updates
-    deb [trusted=yes] http://archive.debian.org/debian-security  jessie/updates main contrib non-free
+    deb http://archive.debian.org/debian stretch main
+    deb http://archive.debian.org/debian-security stretch/updates main
+    deb http://archive.debian.org/debian stretch-updates main
     EOF
   changed_when: false
 
@@ -41,12 +39,11 @@
     DEBIAN_FRONTEND=noninteractive \
     apt-get install -y --allow-unauthenticated \
       --no-install-recommends \
-      -o APT::Default-Release=jessie \
+      -o APT::Default-Release=stretch \
       -o Dpkg::Options::="--force-confdef" \
       -o Dpkg::Options::="--force-confold" \
       debian-archive-keyring python3-minimal python3-apt
   changed_when: false
-
 
 - name: Give the new python time to settle
   pause:
@@ -78,7 +75,7 @@
     state: latest
     update_cache: yes
     install_recommends: no
-    default_release: jessie
+    default_release: stretch
 
 # 7) Generate an ED25519 keypair on the CONTROL node, once
 - name: Ensure we have a root ed25519 keypair (control machine)
