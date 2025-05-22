@@ -10,8 +10,7 @@
     current_release: >-
       {{
         (os_release_raw.stdout
-         | regex_search('^VERSION_ID="?(.+?)"?$', '\\1', multiline=True)
-         | first
+         | regex_search('^VERSION_ID="?(.+?)"?$', r'\1', multiline=True)
          | regex_replace('[\r\n"]', '')
          | trim)
       }}
