@@ -5,7 +5,7 @@
   changed_when: false
 
 - name: Configure jessie archive repositories (raw)
-  raw: |
+  raw: |-
     echo 'Acquire::Check-Valid-Until "false";' > /etc/apt/apt.conf.d/99jessie-archive
     echo 'Acquire::AllowInsecureRepositories "true";' >> /etc/apt/apt.conf.d/99jessie-archive
     cat > /etc/apt/sources.list.d/jessie.list <<'EOF'
