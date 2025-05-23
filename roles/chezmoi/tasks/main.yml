@@ -4,6 +4,15 @@
     state: present
   become: yes
 
+- name: Ensure chezmoi prerequisites are present
+  apt:
+    name:
+      - curl
+      - git
+    state: present
+    update_cache: yes
+  become: yes
+
 - name: Initialize chezmoi and apply dotfiles
   become: yes
   become_user: "{{ target_user }}"
