@@ -164,6 +164,8 @@
           --no-install-recommends \
           -o Dpkg::Options::="--force-confdef" \
           -o Dpkg::Options::="--force-confold" \
+          python3.9 \
+          python3.9-distutils \
           python3.9-venv \
           python3-apt \
           openssh-server \
