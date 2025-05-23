@@ -4,6 +4,13 @@
     state: present
   become: yes
 
+- name: Make apt noninteractive during chezmoi run
+  lineinfile:
+    path: /etc/environment
+    line: 'DEBIAN_FRONTEND=noninteractive'
+    create: yes
+  become: yes
+
 - name: Ensure chezmoi prerequisites are present
   apt:
     name:
@@ -17,7 +24,7 @@
   become: yes
   become_user: "{{ target_user }}"
   environment:
-    CHEZMOI_NO_SUDO: "0"    # let the script call sudo
+    CHEZMOI_NO_SUDO: "0"
     HOME: "/home/{{ target_user }}"
   shell: |
     set -e
@@ -25,3 +32,5 @@
     echo "Post-chezmoi commands running"
   args:
     chdir: "/home/{{ target_user }}"
+    pty: yes
+
