@@ -22,7 +22,6 @@
   roles:
     - bootstrap
     - ssh_hardening
-    - system
 
 - name: 2️⃣ Harden & daily operations (key login)
   hosts: cloudkey
@@ -33,6 +32,7 @@
     ansible_ssh_private_key_file: "{{ playbook_dir }}/ssh_keys/root_ed25519"
     ansible_python_interpreter: /usr/bin/python3
   roles:
+    - system
     - storage
     - users
     - chezmoi
