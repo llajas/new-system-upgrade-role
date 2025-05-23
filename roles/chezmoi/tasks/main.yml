@@ -1,12 +1,17 @@
-- name: Initialize chezmoi and run subsequent commands non-interactively
+- name: Install chezmoi as root
+  become: yes
+  shell: |
+    # The “-b” flag tells the installer where to drop the binary,
+    # and because we’re already root, it never calls sudo
+    sh -c "$(curl -fsLS get.chezmoi.io)" -- -b /usr/local/bin
+
+- name: Initialize chezmoi for {{ target_user }}
   become: yes
   become_user: "{{ target_user }}"
   environment:
-    CHEZMOI_NO_SUDO: "1"
-  shell: |
-    set -e
-    sh -c "$(curl -fsLS get.chezmoi.io)" -- init --apply {{ github_username }}
-    # Now run your additional commands here in the same context
-    echo "Post-chezmoi commands running"
+    HOME: "/home/{{ target_user }}"
+    XDG_DATA_HOME: "/home/{{ target_user }}/.local/share"
+  command: >
+    /usr/local/bin/chezmoi init --apply {{ github_username }}
   args:
     chdir: "/home/{{ target_user }}"
