@@ -43,7 +43,8 @@
 
     - name: Reboot into Stretch
       raw: |
-        nohup /sbin/shutdown -r now </dev/null >/dev/null 2>&1 &
+        restart now
+      ignore_unreachable: true
 
     - name: Wait for SSH port to be open (run on control node)
       wait_for:
@@ -86,7 +87,8 @@
 
     - name: Reboot into Buster
       raw: |
-        nohup /sbin/shutdown -r now </dev/null >/dev/null 2>&1 &
+        restart now
+      ignore_unreachable: true
 
     - name: Wait for SSH port to be open (run on control node)
       wait_for:
@@ -135,7 +137,8 @@
 
     - name: Final reboot after bootstrapping Python
       raw: |
-        nohup /sbin/shutdown -r now </dev/null >/dev/null 2>&1 &
+        restart now
+      ignore_unreachable: true
 
     - name: Wait for SSH port to be open (run on control node)
       wait_for:
