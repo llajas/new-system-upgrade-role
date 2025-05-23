@@ -22,6 +22,7 @@
   roles:
     - bootstrap
     - ssh_hardening
+    - system
 
 - name: 2️⃣ Harden & daily operations (key login)
   hosts: cloudkey
