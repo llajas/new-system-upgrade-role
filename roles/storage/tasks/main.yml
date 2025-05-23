@@ -8,21 +8,6 @@
     update_cache: yes
   become: yes
 
-- name: Unmount /home and remove fstab entry
-  mount:
-    path: /home
-    state: absent
-  become: yes
-
-- name: Turn off any swap on /dev/sda*
-  shell: |
-    for p in /dev/sda*; do
-      swapoff "$p" || true
-    done
-  args:
-    executable: /bin/bash
-  become: yes
-
 - name: Wipe partition table on /dev/sda
   command: parted /dev/sda --script mklabel gpt
   become: yes
@@ -37,17 +22,22 @@
     fs_type: ext4
   become: yes
 
+- name: Turn off any swap on /dev/sda1
+  command: swapoff /dev/sda1
+  ignore_errors: yes
+  become: yes
+
 - name: Wipe existing filesystem signatures on /dev/sda1
   command: wipefs -a /dev/sda1
   become: yes
 
-- name: Format /dev/sda1 as ext4
+- name: Format the partition as ext4
   filesystem:
     fstype: ext4
     dev: /dev/sda1
   become: yes
 
-- name: Ensure /home directory exists
+- name: Ensure /home exists
   file:
     path: /home
     state: directory
