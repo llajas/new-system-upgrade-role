@@ -22,11 +22,14 @@
   changed_when: false
   failed_when: false
 
-- name: Wipe partition table on /dev/sda if not already gpt and partition not in use
+- name: Wipe partition table on /dev/sda if not already gpt, no partition 1 exists, and no partition is mounted
   command: parted /dev/sda --script mklabel gpt
   become: yes
-  when: ("gpt" not in parted_info.stdout.lower()) and (sda1_mount.stdout == "")
-  # This task runs only if the partition table is not GPT and no partition is mounted
+  when: >
+    ("gpt" not in parted_info.stdout.lower()) and 
+    (sda1_mount.stdout == "") and 
+    (not (parted_info.stdout | regex_search('(?m)^\\s*1\\s')))
+  # The regex looks for a line that starts with the partition number "1"
 
 - name: Create a single GPT partition on /dev/sda
   parted:
