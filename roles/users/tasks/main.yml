@@ -3,11 +3,14 @@
     target: "{{ target_user }}"   # now no default is provided
 
 - name: Generate a temporary random password for {{ target }}
-  # this never gets stored on-disk and only lives in memory during the play
   set_fact:
     red_tmp_pass: "{{ lookup('password', '/dev/null length=32 chars=ascii_letters,digits') }}"
 
-- name: Create user {{ target }} (with a hashed password so we can unlock)
+- name: Hash that password with SHA-512 (requires openssl on your control node)
+  set_fact:
+    red_pass_hash: "{{ lookup('pipe', 'openssl passwd -6 ' + red_tmp_pass) }}"
+
+- name: Create or update user {{ target }} (with hashed password so we can unlock)
   user:
     name: "{{ target }}"
     comment: "User {{ target }} with home on SSD"
@@ -17,13 +20,10 @@
     state: present
     create_home: yes
 
-    # supply a real hash—usermod -p needs something to write
-    password: "{{ red_tmp_pass | password_hash('sha512') }}"
+    password: "{{ red_pass_hash }}"
     update_password: on_create
 
-    # now that there's a password entry, this will actually remove the leading “!” lock
     password_lock: false
-
 
 - name: Ensure .ssh directory exists for user {{ target }}
   file:
@@ -40,7 +40,6 @@
       - { key_var: "private_key_file", dest: "/home/{{ target }}/.ssh/{{ target }}_{{ ssh_key_suffix | default('id_rsa') }}", mode: "0600" }
   loop: "{{ ssh_keys }}"
   copy:
-    # use src: not content:, so the file (with its trailing newline) is preserved
     src: "{{ lookup('vars', item.key_var) }}"
     dest: "{{ item.dest }}"
     owner: "{{ target }}"
