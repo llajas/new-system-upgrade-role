@@ -23,11 +23,12 @@
 - name: Install SSH key files for user {{ target }}
   vars:
     ssh_keys:
-      - { key_var: "public_key_file", dest: "/home/{{ target }}/.ssh/authorized_keys", mode: "0600" }
+      - { key_var: "public_key_file",  dest: "/home/{{ target }}/.ssh/authorized_keys",                     mode: "0600" }
       - { key_var: "private_key_file", dest: "/home/{{ target }}/.ssh/{{ target }}_{{ ssh_key_suffix | default('id_rsa') }}", mode: "0600" }
   loop: "{{ ssh_keys }}"
   copy:
-    content: "{{ lookup('file', lookup('vars', item.key_var)) }}"
+    # use src: not content:, so the file (with its trailing newline) is preserved
+    src: "{{ lookup('vars', item.key_var) }}"
     dest: "{{ item.dest }}"
     owner: "{{ target }}"
     group: "{{ target }}"
