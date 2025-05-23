@@ -1,7 +1,62 @@
 ---
-- name: Deploy sshd configuration
+# Generate & install an ED25519 keypair for root over SSH
+
+# 1. Ensure the local key directory exists (on your control node)
+- name: Ensure local ssh_keys dir exists
+  file:
+    path: "{{ playbook_dir }}/ssh_keys"
+    state: directory
+    mode: '0700'
+  delegate_to: localhost
+  run_once: true
+
+# 2. Check if our key already exists
+- name: Check for existing local SSH keypair
+  stat:
+    path: "{{ playbook_dir }}/ssh_keys/root_ed25519"
+  register: keypair_stat
+  delegate_to: localhost
+  run_once: true
+
+# 3. Generate it if missing
+- name: Generate local SSH keypair if missing
+  openssh_keypair:
+    path: "{{ playbook_dir }}/ssh_keys/root_ed25519"
+    type: ed25519
+    comment: "root@{{ inventory_hostname }}"
+    mode: '0600'
+  when: not keypair_stat.stat.exists
+  delegate_to: localhost
+  run_once: true
+
+# 4. Slurp the public key so we can push it to the target
+- name: Read the public key from control node
+  slurp:
+    src: "{{ playbook_dir }}/ssh_keys/root_ed25519.pub"
+  register: local_pubkey
+  delegate_to: localhost
+  run_once: true
+
+# 5. Ensure root’s .ssh folder on the target
+- name: Ensure /root/.ssh exists on target
+  file:
+    path: /root/.ssh
+    state: directory
+    owner: root
+    group: root
+    mode: '0700'
+
+# 6. Push the pubkey into root’s authorized_keys
+- name: Authorize root SSH key on remote
+  authorized_key:
+    user: root
+    key: "{{ local_pubkey.content | b64decode }}"
+    state: present
+
+# 7. Finally, deploy your hardened sshd_config
+- name: Deploy sshd_config
   template:
-    src: templates/sshd_config.j2
+    src: sshd_config.j2
     dest: /etc/ssh/sshd_config
     owner: root
     group: root
