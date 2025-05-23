@@ -32,5 +32,5 @@
     echo "Post-chezmoi commands running"
   args:
     chdir: "/home/{{ target_user }}"
-    pty: yes
+  pty: yes
 
