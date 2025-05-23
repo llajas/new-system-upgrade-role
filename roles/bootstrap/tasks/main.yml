@@ -43,7 +43,7 @@
 
     - name: Reboot into Stretch
       raw: |
-        restart now
+        reboot now
       ignore_unreachable: true
 
     - name: Wait for SSH port to be open (run on control node)
@@ -87,7 +87,7 @@
 
     - name: Reboot into Buster
       raw: |
-        restart now
+        reboot now
       ignore_unreachable: true
 
     - name: Wait for SSH port to be open (run on control node)
@@ -132,7 +132,7 @@
 
     - name: Reboot into Bullseye
       raw: |
-        restart now
+        reboot now
       ignore_unreachable: true
 
     - name: Wait for SSH port to be open (run on control node)
