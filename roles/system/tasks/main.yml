@@ -1,11 +1,11 @@
 ---
 
-- name: Set hostname/fqdn
+- name: Set hostname/fqdn using inventory name
   ansible.builtin.hostname:
-    name: "{{ ansible_hostname }}"
+    name: "{{ inventory_hostname }}"
   become: yes
 
-- name: Install package for dhcp and enable dhcp
+- name: Install package for dhcp
   ansible.builtin.package:
     name: "{{ item }}"
     state: present
@@ -13,3 +13,10 @@
     - isc-dhcp-server
     - isc-dhcp-client
   become: yes
+
+  - name: Set eth0 interface to dhcp
+    ansible.builtin.lineinfile:
+      path: /etc/network/interfaces
+      regexp: '^iface eth0 inet'
+      line: 'iface eth0 inet dhcp'
+      state: present
