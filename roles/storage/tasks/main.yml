@@ -8,9 +8,25 @@
     update_cache: yes
   become: yes
 
-- name: Wipe partition table on /dev/sda
+- name: Get current partition table info for /dev/sda
+  command: parted /dev/sda print
+  become: yes
+  register: parted_info
+  changed_when: false
+  failed_when: false
+
+- name: Check if /dev/sda1 is mounted
+  command: mount | grep '/dev/sda1'
+  become: yes
+  register: sda1_mount
+  changed_when: false
+  failed_when: false
+
+- name: Wipe partition table on /dev/sda if not already gpt and partition not in use
   command: parted /dev/sda --script mklabel gpt
   become: yes
+  when: ("gpt" not in parted_info.stdout.lower()) and (sda1_mount.stdout == "")
+  # This task runs only if the partition table is not GPT and no partition is mounted
 
 - name: Create a single GPT partition on /dev/sda
   parted:
