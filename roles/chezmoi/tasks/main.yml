@@ -1,17 +1,18 @@
-- name: Install chezmoi as root
+- name: Ensure sudo is available
+  apt:
+    name: sudo
+    state: present
   become: yes
-  shell: |
-    # The “-b” flag tells the installer where to drop the binary,
-    # and because we’re already root, it never calls sudo
-    sh -c "$(curl -fsLS get.chezmoi.io)" -- -b /usr/local/bin
 
-- name: Initialize chezmoi for {{ target_user }}
+- name: Initialize chezmoi and apply dotfiles
   become: yes
   become_user: "{{ target_user }}"
   environment:
+    CHEZMOI_NO_SUDO: "0"    # let the script call sudo
     HOME: "/home/{{ target_user }}"
-    XDG_DATA_HOME: "/home/{{ target_user }}/.local/share"
-  command: >
-    /usr/local/bin/chezmoi init --apply {{ github_username }}
+  shell: |
+    set -e
+    sh -c "$(curl -fsLS get.chezmoi.io)" -- init --apply {{ github_username }}
+    echo "Post-chezmoi commands running"
   args:
     chdir: "/home/{{ target_user }}"
