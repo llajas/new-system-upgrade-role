@@ -21,16 +21,18 @@
   become: yes
 
 - name: Initialize chezmoi and apply dotfiles
+  ansible.builtin.shell: |
+    set -e
+    sh -c "$(curl -fsLS get.chezmoi.io)" -- init --apply {{ github_username }}
+    echo "Post-chezmoi commands running"
   become: yes
   become_user: "{{ target_user }}"
   environment:
     CHEZMOI_NO_SUDO: "0"
     HOME: "/home/{{ target_user }}"
-  shell: |
-    set -e
-    sh -c "$(curl -fsLS get.chezmoi.io)" -- init --apply {{ github_username }}
-    echo "Post-chezmoi commands running"
   args:
     chdir: "/home/{{ target_user }}"
+  # pty must be at the same level as shell/args/become, not under args
   pty: yes
+
 
