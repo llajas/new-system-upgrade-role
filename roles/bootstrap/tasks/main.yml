@@ -111,31 +111,26 @@
 # Phase 2b: Bootstrap Python on Buster
 # ─────────────────────────────────────────────────────────────
 - block:
-    - name: Install Python 3.7, venv, python3-apt & OpenSSH
+
+    - name: Configure APT for Bullseye upgrade
+      raw: |
+        cat > /etc/apt/sources.list << 'EOF'
+        deb http://deb.debian.org/debian               bullseye        main contrib non-free
+        deb http://security.debian.org/debian-security bullseye-security main contrib non-free
+        deb http://deb.debian.org/debian               bullseye-updates main
+        EOF
+      changed_when: false
+
+      - name: Dist-upgrade Buster → Bullseye
       raw: |
         export DEBIAN_FRONTEND=noninteractive
         apt-get update -o Acquire::Check-Valid-Until=false
-        apt-get install -y --allow-unauthenticated \
-          --no-install-recommends \
+        apt-get dist-upgrade -y \
           -o Dpkg::Options::="--force-confdef" \
-          -o Dpkg::Options::="--force-confold" \
-          python3.7 python3.7-venv python3.7-apt openssh-server \
-          debian-archive-keyring
+          -o Dpkg::Options::="--force-confold"
       changed_when: false
 
-    # - name: remove UseDNS from sshd Configure (raw)
-    #   raw: |
-    #     sed -i '/^UseDNS/d' /etc/ssh/sshd_config
-
-    - name: Pause for Python 3.7 to settle
-      pause:
-        seconds: 5
-
-    - name: Point Ansible at Python 3.7
-      set_fact:
-        ansible_python_interpreter: /usr/bin/python3.7
-
-    - name: Final reboot after bootstrapping Python
+    - name: Reboot into Bullseye
       raw: |
         restart now
       ignore_unreachable: true
@@ -156,45 +151,126 @@
       retries: 30
       delay: 10
   when: current_release | int == 10
+    # - name: Install OpenSSH
+    #   raw: |
+    #     export DEBIAN_FRONTEND=noninteractive
+    #     apt-get update -o Acquire::Check-Valid-Until=false
+    #     apt-get install -y --allow-unauthenticated \
+    #       --no-install-recommends \
+    #       -o Dpkg::Options::="--force-confdef" \
+    #       -o Dpkg::Options::="--force-confold" \
+    #       openssh-server \
+    #       debian-archive-keyring
+    #   changed_when: false
 
-# Once Python is available, re-establish a Python-based connection
-- name: Re-gather facts now that Python is available
-  meta: reset_connection
+    # - name: remove UseDNS from sshd Configure (raw)
+    #   raw: |
+    #     sed -i '/^UseDNS/d' /etc/ssh/sshd_config
 
-- name: Gather real facts
-  setup: {}
+    # - name: Pause for Python 3.7 to settle
+    #   pause:
+    #     seconds: 5
+
+    # - name: Point Ansible at Python 3.7
+    #   set_fact:
+    #     ansible_python_interpreter: /usr/bin/python3.7
+
+    # - name: Final reboot after bootstrapping Python
+    #   raw: |
+    #     restart now
+    #   ignore_unreachable: true
+
+    # - name: Wait for SSH port to be open (run on control node)
+    #   wait_for:
+    #     host: "{{ inventory_hostname }}"
+    #     port: 22
+    #     delay: 10
+    #     timeout: 300
+    #   delegate_to: localhost
+    #   become: false
+
+    # - name: Wait for shell to actually accept commands
+    #   raw: uptime
+    #   register: upcheck
+    #   until: upcheck.rc == 0
+    #   retries: 30
+    #   delay: 10
+
+# # Once Python is available, re-establish a Python-based connection
+# - name: Re-gather facts now that Python is available
+#   meta: reset_connection
+
+# - name: Gather real facts
+#   setup: {}
 
 # ─────────────────────────────────────────────────────────────
 # Phase 3: Buster → Bullseye
 # ─────────────────────────────────────────────────────────────
-- block:
-    - name: Configure APT for Bullseye upgrade
-      copy:
-        dest: /etc/apt/sources.list
-        content: |
-          deb http://deb.debian.org/debian               bullseye        main contrib non-free
-          deb http://security.debian.org/debian-security bullseye-security main contrib non-free
-          deb http://deb.debian.org/debian               bullseye-updates main
-      notify: Update apt cache
+# - block:
+#     - name: Configure APT for Bullseye upgrade
+#       copy:
+#         dest: /etc/apt/sources.list
+#         content: |
+#           deb http://deb.debian.org/debian               bullseye        main contrib non-free
+#           deb http://security.debian.org/debian-security bullseye-security main contrib non-free
+#           deb http://deb.debian.org/debian               bullseye-updates main
+#       notify: Update apt cache
 
-    - name: Upgrade Buster → Bullseye
-      apt:
-        update_cache: yes
-        upgrade: dist
-        dpkg_options:
-          - "--force-confdef"
-          - "--force-confold"
+#     - name: Upgrade Buster → Bullseye
+#       apt:
+#         update_cache: yes
+#         upgrade: dist
+#         dpkg_options:
+#           - "--force-confdef"
+#           - "--force-confold"
 
-    - name: Reboot into Bullseye
-      reboot:
-        msg: "Rebooting after upgrade to Bullseye"
-        reboot_timeout: 300
-        test_command: uptime
-  when: ansible_distribution_release == "buster"
+#     - name: Reboot into Bullseye
+#       reboot:
+#         msg: "Rebooting after upgrade to Bullseye"
+#         reboot_timeout: 300
+#         test_command: uptime
+#   when: ansible_distribution_release == "buster"
 
 # ─────────────────────────────────────────────────────────────
 # Phase 4: Bullseye → Bookworm
 # ─────────────────────────────────────────────────────────────
+- block:
+    - name: Install Python 3.9 venv, python3-apt & OpenSSH (raw)
+      raw: |
+        export DEBIAN_FRONTEND=noninteractive
+        apt-get update -o Acquire::Check-Valid-Until=false
+        apt-get install -y --allow-unauthenticated \
+          --no-install-recommends \
+          -o Dpkg::Options::="--force-confdef" \
+          -o Dpkg::Options::="--force-confold" \
+          python3.9-venv \
+          python3-apt \
+          openssh-server \
+          debian-archive-keyring
+      changed_when: false
+
+    - name: Paure for Python 3.9 to settle
+      pause:
+        seconds: 5
+
+    - name: Point Ansible at Python 3.9
+      set_fact:
+        ansible_python_interpreter: /usr/bin/python3.9
+    
+    - name: Re-gather facts now that Python is available
+      meta: reset_connection
+
+    - name: Gather real facts
+      setup: {}
+
+    - name: Reboot
+      reboot:
+        msg: "Rebooting after upgrade to Bullseye"
+        reboot_timeout: 300
+        test_command: uptime
+      ignore_unreachable: true
+  when: current_release | int == 11
+
 - block:
     - name: Configure APT for Bookworm upgrade
       copy:
