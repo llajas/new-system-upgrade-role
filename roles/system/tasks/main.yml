@@ -1,0 +1,15 @@
+---
+
+- name: Set hostname/fqdn
+  ansible.builtin.hostname:
+    name: "{{ ansible_hostname }}"
+  become: yes
+
+- name: Install package for dhcp and enable dhcp
+  ansible.builtin.package:
+    name: "{{ item }}"
+    state: present
+  loop:
+    - isc-dhcp-server
+    - isc-dhcp-client
+  become: yes
