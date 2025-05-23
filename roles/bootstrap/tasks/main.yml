@@ -204,9 +204,6 @@
       apt:
         update_cache: yes
         upgrade: dist
-        dpkg_options:
-          - "--force-confdef"
-          - "--force-confold"
 
     - name: Reboot into Bookworm
       reboot:
