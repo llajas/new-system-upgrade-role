@@ -15,11 +15,11 @@
     part_end: 100%
     fs_type: ext4
 
-  - name: Turn off any swap on /dev/sda1
+- name: Turn off any swap on /dev/sda1
   command: swapoff /dev/sda1
-  ignore_errors: yes
+  ignore_errors: true
 
-  - name: Wipe existing filesystem signatures on /dev/sda1
+- name: Wipe existing filesystem signatures on /dev/sda1
   command: wipefs -a /dev/sda1
 
 - name: Format the partition as ext4 if needed
