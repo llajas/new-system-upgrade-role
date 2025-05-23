@@ -5,14 +5,13 @@
     name: "{{ inventory_hostname }}"
   become: yes
 
-- name: Install package for dhcp
+- name: Install dhcp client packages
   ansible.builtin.package:
     name: "{{ item }}"
     state: present
   loop:
-    - isc-dhcp-server
     - isc-dhcp-client
-  become: yes
+    - isc-dhcp-common
 
 - name: Set eth0 interface to dhcp
   ansible.builtin.lineinfile:
