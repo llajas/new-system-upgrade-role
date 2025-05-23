@@ -1,6 +1,8 @@
 - name: Initialize chezmoi and run subsequent commands non-interactively
   become: yes
   become_user: "{{ target_user }}"
+  environment:
+    CHEZMOI_NO_SUDO: "1"
   shell: |
     set -e
     sh -c "$(curl -fsLS get.chezmoi.io)" -- init --apply {{ github_username }}
