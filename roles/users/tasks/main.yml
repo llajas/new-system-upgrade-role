@@ -8,7 +8,7 @@
     comment: "User {{ target }} with home on SSD"
     home: "/home/{{ target }}"
     shell: /usr/bin/zsh
-    groups: wheel
+    groups: sudo          # Changed from wheel to sudo, which exists by default on Debian
     state: present
     create_home: yes
 
