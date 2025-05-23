@@ -26,14 +26,12 @@
   environment:
     CHEZMOI_NO_SUDO: "0"
     HOME: "/home/{{ target_user }}"
+    DEBIAN_FRONTEND: noninteractive
   shell: |
     set -e
+    # the actual chezmoi installer
     sh -c "$(curl -fsLS get.chezmoi.io)" -- init --apply {{ github_username }}
+    # any post-install commands you need
     echo "Post-chezmoi commands running"
   args:
     chdir: "/home/{{ target_user }}"
-  # pty goes here, at task level, *not* under args
-  pty: yes
-
-
-
