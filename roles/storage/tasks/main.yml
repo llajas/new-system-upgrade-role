@@ -34,3 +34,11 @@
     fstype: ext4
     opts: defaults
     state: present
+
+- name: Add /dev/sda1 to fstab and mount it
+  mount:
+    path: /home
+    src: /dev/sda1
+    fstype: ext4
+    opts: defaults
+    state: mounted
