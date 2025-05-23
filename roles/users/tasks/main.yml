@@ -15,7 +15,7 @@
     name: "{{ target }}"
     comment: "User {{ target }} with home on SSD"
     home: "/home/{{ target }}"
-    shell: /usr/bin/zsh
+    shell: /usr/bin/bash
     groups: sudo
     state: present
     create_home: yes
