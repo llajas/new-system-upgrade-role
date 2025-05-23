@@ -1,42 +1,50 @@
 ---
-- name: Install Parted
-  apt:
-    name:
-      - parted
-    state: present
+# roles/storage/tasks/main.yml
 
-- name: Wipe out any existing partitions on /dev/sda
-  parted:
-    device: /dev/sda
-    label: gpt
+- name: Install parted
+  apt:
+    name: parted
     state: present
+    update_cache: yes
+  become: yes
+
+- name: Wipe partition table on /dev/sda
+  command: parted /dev/sda --script mklabel gpt
+  become: yes
 
 - name: Create a single GPT partition on /dev/sda
   parted:
     device: /dev/sda
-    label: gpt
     number: 1
     state: present
     part_start: 1MiB
     part_end: 100%
     fs_type: ext4
+  become: yes
 
 - name: Turn off any swap on /dev/sda1
   command: swapoff /dev/sda1
-  ignore_errors: true
+  ignore_errors: yes
+  become: yes
 
 - name: Wipe existing filesystem signatures on /dev/sda1
   command: wipefs -a /dev/sda1
+  become: yes
 
 - name: Format the partition as ext4
   filesystem:
     fstype: ext4
     dev: /dev/sda1
+  become: yes
 
 - name: Ensure /home exists
   file:
     path: /home
     state: directory
+    owner: root
+    group: root
+    mode: '0755'
+  become: yes
 
 - name: Mount /dev/sda1 on /home and add to fstab
   mount:
@@ -45,3 +53,4 @@
     fstype: ext4
     opts: defaults
     state: mounted
+  become: yes
