@@ -2,16 +2,28 @@
   set_fact:
     target: "{{ target_user }}"   # now no default is provided
 
-- name: Create user {{ target }} with home on /home/{{ target }}
+- name: Generate a temporary random password for {{ target }}
+  # this never gets stored on-disk and only lives in memory during the play
+  set_fact:
+    red_tmp_pass: "{{ lookup('password', '/dev/null length=32 chars=ascii_letters,digits') }}"
+
+- name: Create user {{ target }} (with a hashed password so we can unlock)
   user:
     name: "{{ target }}"
     comment: "User {{ target }} with home on SSD"
     home: "/home/{{ target }}"
     shell: /usr/bin/zsh
-    groups: sudo          # Changed from wheel to sudo, which exists by default on Debian
+    groups: sudo
     state: present
     create_home: yes
+
+    # supply a real hash—usermod -p needs something to write
+    password: "{{ red_tmp_pass | password_hash('sha512') }}"
+    update_password: on_create
+
+    # now that there's a password entry, this will actually remove the leading “!” lock
     password_lock: false
+
 
 - name: Ensure .ssh directory exists for user {{ target }}
   file:
