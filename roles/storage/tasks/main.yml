@@ -1,4 +1,10 @@
 ---
+- name: Install Parted
+  apt:
+    name:
+      - parted
+    state: present
+
 - name: Create a single GPT partition on /dev/sda
   parted:
     device: /dev/sda
