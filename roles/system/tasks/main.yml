@@ -14,9 +14,9 @@
     - isc-dhcp-client
   become: yes
 
-  - name: Set eth0 interface to dhcp
-    ansible.builtin.lineinfile:
-      path: /etc/network/interfaces
-      regexp: '^iface eth0 inet'
-      line: 'iface eth0 inet dhcp'
-      state: present
+- name: Set eth0 interface to dhcp
+  ansible.builtin.lineinfile:
+    path: /etc/network/interfaces
+    regexp: '^iface eth0 inet'
+    line: 'iface eth0 inet dhcp'
+    state: present
