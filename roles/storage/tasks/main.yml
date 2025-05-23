@@ -5,6 +5,12 @@
       - parted
     state: present
 
+- name: Wipe out any existing partitions on /dev/sda
+  parted:
+    device: /dev/sda
+    label: gpt
+    state: present
+
 - name: Create a single GPT partition on /dev/sda
   parted:
     device: /dev/sda
@@ -22,20 +28,17 @@
 - name: Wipe existing filesystem signatures on /dev/sda1
   command: wipefs -a /dev/sda1
 
-- name: Format the partition as ext4 if needed
+- name: Format the partition as ext4
   filesystem:
     fstype: ext4
     dev: /dev/sda1
 
-- name: Ensure /home is mounted from /dev/sda1
-  mount:
+- name: Ensure /home exists
+  file:
     path: /home
-    src: /dev/sda1
-    fstype: ext4
-    opts: defaults
-    state: present
+    state: directory
 
-- name: Add /dev/sda1 to fstab and mount it
+- name: Mount /dev/sda1 on /home and add to fstab
   mount:
     path: /home
     src: /dev/sda1
