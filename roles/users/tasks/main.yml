@@ -11,7 +11,7 @@
     groups: sudo          # Changed from wheel to sudo, which exists by default on Debian
     state: present
     create_home: yes
-    password_lock: no
+    password_lock: false
 
 - name: Ensure .ssh directory exists for user {{ target }}
   file:
