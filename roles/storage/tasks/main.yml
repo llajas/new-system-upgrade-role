@@ -8,55 +8,42 @@
     update_cache: yes
   become: yes
 
-- name: Get current partition table info for /dev/sda
-  command: parted /dev/sda print
+- name: Unmount /home if it’s mounted
+  mount:
+    path: /home
+    state: absent
   become: yes
-  register: parted_info
-  changed_when: false
-  failed_when: false
 
-- name: Check if /dev/sda1 is mounted
-  command: mount | grep '/dev/sda1'
+- name: Turn off any swap on /dev/sda1 (ignore errors)
+  shell: swapoff /dev/sda1 || true
+  args:
+    executable: /bin/bash
   become: yes
-  register: sda1_mount
-  changed_when: false
-  failed_when: false
 
-- name: Wipe partition table on /dev/sda if not already gpt, no partition 1 exists, and no partition is mounted
-  command: parted /dev/sda --script mklabel gpt
-  become: yes
-  when: >
-    ("gpt" not in parted_info.stdout.lower()) and 
-    (sda1_mount.stdout == "") and 
-    (not (parted_info.stdout | regex_search('(?m)^\\s*1\\s')))
-  # The regex looks for a line that starts with the partition number "1"
-
-- name: Create a single GPT partition on /dev/sda
+- name: Ensure a single GPT partition on /dev/sda (1MiB → 100% ext4)
   parted:
     device: /dev/sda
+    label: gpt                 # ← makes sure the table is GPT
     number: 1
     state: present
     part_start: 1MiB
     part_end: 100%
     fs_type: ext4
+  register: parted_res
   become: yes
 
-- name: Turn off any swap on /dev/sda1
-  command: swapoff /dev/sda1
-  ignore_errors: yes
-  become: yes
-
-- name: Wipe existing filesystem signatures on /dev/sda1
+- name: Wipe stray filesystems on /dev/sda1 (only if we just re-partitioned)
   command: wipefs -a /dev/sda1
+  when: parted_res.changed
   become: yes
 
-- name: Format the partition as ext4
+- name: Format /dev/sda1 as ext4
   filesystem:
     fstype: ext4
     dev: /dev/sda1
   become: yes
 
-- name: Ensure /home exists
+- name: Ensure /home directory exists
   file:
     path: /home
     state: directory
