@@ -121,7 +121,7 @@
         EOF
       changed_when: false
 
-      - name: Dist-upgrade Buster → Bullseye
+    - name: Dist-upgrade Buster → Bullseye
       raw: |
         export DEBIAN_FRONTEND=noninteractive
         apt-get update -o Acquire::Check-Valid-Until=false
