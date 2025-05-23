@@ -21,7 +21,7 @@
     create_home: yes
 
     password: "{{ red_pass_hash }}"
-    update_password: on_create
+    update_password: always
 
     password_lock: false
 
