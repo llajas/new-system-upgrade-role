@@ -8,22 +8,10 @@
     update_cache: yes
   become: yes
 
-- name: Unmount /home if it’s mounted
-  mount:
-    path: /home
-    state: absent
-  become: yes
-
-- name: Turn off any swap on /dev/sda1 (ignore errors)
-  shell: swapoff /dev/sda1 || true
-  args:
-    executable: /bin/bash
-  become: yes
-
 - name: Ensure a single GPT partition on /dev/sda (1MiB → 100% ext4)
   parted:
     device: /dev/sda
-    label: gpt                 # ← makes sure the table is GPT
+    label: gpt                 # ensures the table is GPT
     number: 1
     state: present
     part_start: 1MiB
@@ -37,10 +25,25 @@
   when: parted_res.changed
   become: yes
 
-- name: Format /dev/sda1 as ext4
+- name: Turn off any swap on /dev/sda1 (ignore errors) if partition changed
+  shell: swapoff /dev/sda1 || true
+  args:
+    executable: /bin/bash
+  when: parted_res.changed
+  become: yes
+
+- name: Unmount /home if it’s mounted (if partition changed)
+  mount:
+    path: /home
+    state: absent
+  when: parted_res.changed
+  become: yes
+
+- name: Format /dev/sda1 as ext4 (if partition changed)
   filesystem:
     fstype: ext4
     dev: /dev/sda1
+  when: parted_res.changed
   become: yes
 
 - name: Ensure /home directory exists
