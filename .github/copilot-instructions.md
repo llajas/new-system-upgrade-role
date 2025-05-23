@@ -5,12 +5,12 @@
 #  Goal
 #  ────
 #  Turn a UniFi CloudKey-Gen2Plus (Debian 8 Jessie, root/password) into a
-#  clean Debian 12 Bookworm host with:
-#    • SSH key–only access (root + user “red”)
+#  clean Debian 12 Bookworm headless host with:
+#    • in-place dist-upgrades: 8→9→10→11→12 (reboot & wait each step - 8-11 done via raw commands, then python 3.9 is installed on 11 before upgrading to 12)    
+#    • SSH key–only access (root + a custom user)
 #    • SSD (/dev/sda) formatted, mounted at /home
-#    • user “red” on the SSD, public-key, zsh later
-#    • in-place dist-upgrades: 8→9→10→11→12 (reboot & wait each step)
-#    • chezmoi init for “red” after all upgrades
+#    • custom user on the SSD, public-key, zsh later
+#    • chezmoi init for custom user after all upgrades
 #
 #  Repository layout
 #  ─────────────────
