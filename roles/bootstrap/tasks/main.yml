@@ -156,7 +156,7 @@
 # Phase 4: Bullseye (11) → Bookworm (12)
 # ─────────────────────────────────────────────────────────────
 - block:
-    - name: Install Python 3.9 venv, python3-apt & OpenSSH (raw)
+    - name: Install Python 3 venv, python3-apt & OpenSSH (raw)
       raw: |
         export DEBIAN_FRONTEND=noninteractive
         apt-get update -o Acquire::Check-Valid-Until=false
