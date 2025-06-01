@@ -48,8 +48,11 @@
   when: lookup('vars', item.key_var, default='') != ''
 
 - name: Allow {{ target_user }} to sudo without a password
-  copy:
-    dest: /etc/sudoers.d/{{ target_user }}
-    content: "{{ target_user }} ALL=(ALL) NOPASSWD:ALL"
-    mode: '0440'
   become: yes
+  copy:
+    dest: "/etc/sudoers.d/{{ target_user }}"
+    owner: root
+    group: root
+    mode:  '0440'
+    content: |
+      {{ target_user }} ALL=(ALL) NOPASSWD: ALL
