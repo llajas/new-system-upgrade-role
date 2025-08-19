@@ -197,10 +197,13 @@
       copy:
         dest: /etc/apt/sources.list
         content: |
-          deb http://deb.debian.org/debian               bookworm        main contrib non-free
-          deb http://security.debian.org/debian-security bookworm-security main contrib non-free
-          deb http://deb.debian.org/debian               bookworm-updates main
-      notify: Update apt cache
+          deb http://deb.debian.org/debian               bookworm           main contrib non-free non-free-firmware
+          deb http://security.debian.org/debian-security bookworm-security  main contrib non-free non-free-firmware
+          deb http://deb.debian.org/debian               bookworm-updates   main contrib non-free non-free-firmware
+
+    - name: Point Ansible at system python3 (not version-pinned)
+      set_fact:
+        ansible_python_interpreter: /usr/bin/python3
 
     - name: Upgrade Bullseye → Bookworm
       apt:
@@ -213,3 +216,44 @@
         reboot_timeout: 300
         test_command: uptime
   when: current_release | int == 11
+
+# ─────────────────────────────────────────────────────────────
+# Phase 5: Bookworm (12) → Trixie (13)
+# ─────────────────────────────────────────────────────────────
+- block:
+    - name: Configure APT for Trixie (deb822)
+      copy:
+        dest: /etc/apt/sources.list.d/debian.sources
+        content: |
+          Types: deb
+          URIs: https://deb.debian.org/debian
+          Suites: trixie trixie-updates
+          Components: main contrib non-free non-free-firmware
+          Signed-By: /usr/share/keyrings/debian-archive-keyring.gpg
+
+          Types: deb
+          URIs: https://security.debian.org/debian-security
+          Suites: trixie-security
+          Components: main contrib non-free non-free-firmware
+          Signed-By: /usr/share/keyrings/debian-archive-keyring.gpg
+
+    - name: Full upgrade Bookworm → Trixie
+      apt:
+        update_cache: yes
+        upgrade: dist
+
+    - name: Reboot into Trixie
+      reboot:
+        msg: "Rebooting after upgrade to Trixie"
+        reboot_timeout: 600
+        test_command: "cat /etc/os-release"
+
+    # refresh VERSION_ID for any subsequent logic
+    - name: Refresh current_release (post-reboot)
+      raw: ". /etc/os-release && echo $VERSION_ID"
+      register: current_release_raw_post
+      changed_when: false
+
+    - set_fact:
+        current_release: "{{ current_release_raw_post.stdout | trim }}"
+  when: current_release | int == 12 
