@@ -1,82 +1,15 @@
-# ─────────────────────────────────────────────────────────────────────────────
-#  Copilot guidance – “cloudkey-ansible” (revised)
-# ─────────────────────────────────────────────────────────────────────────────
-#
-#  Goal
-#  ────
-#  Turn a UniFi CloudKey-Gen2Plus (Debian 8 Jessie, root/password) into a
-#  clean Debian 12 Bookworm headless host with:
-#    • in-place dist-upgrades: 8→9→10→11→12 (reboot & wait each step - 8-11 done via raw commands, then python 3.9 is installed on 11 before upgrading to 12)    
-#    • SSH key–only access (root + a custom user)
-#    • SSD (/dev/sda) formatted, mounted at /home
-#    • custom user on the SSD, public-key, zsh later
-#    • chezmoi init for custom user after all upgrades
-#
-#  Repository layout
-#  ─────────────────
-#  ─────────────────
-#  .
-#  ├── inventory
-#  ├── README.md
-#  ├── site.yml
-#  ├── ssh_keys
-#  │   ├── root_ed25519
-#  │   └── root_ed25519.pub
-#  └── roles/
-#      ├── bootstrap/           ← handles Jessie→Stretch→Buster then pivots from raw requests to using a python interpreter as ansible needs python 3.7 which isn’t available until we’re on the buster release
-#      │   ├── handlers/
-#      │   │   └── main.yml
-#      │   └── tasks/
-#      │       └── main.yml
-#      ├── chezmoi/
-#      │   └── tasks/
-#      │       └── main.yml
-#      ├── ssh_hardening/
-#      │   ├── handlers/
-#      │   │   └── main.yml
-#      │   ├── tasks/
-#      │   │   └── main.yml
-#      │   └── templates/
-#      │       └── sshd_config.j2
-#      ├── storage/
-#      │   └── tasks/
-#      │       └── main.yml
-#      └── users/
-#          └── tasks/
-#              └── main.yml
-#
-#  Play order (site.yml)
-#  =====================
-#
-#  ● Pre-Flight: Check if key-auth already works on the remote host and skip bootstrap if key is already installed.
-#
-#  ● Phase 1: bootstrap → Update the remote OS until we can get Python 3.9+ on the remote
-#  
-#    Start with a bootstrap role that upgrades the OS to Bullseye (raw Jessie→Stretch→Buster→Bullseye)
-#    using raw Ansible due to lack of python with ansible-core support.
-#    Once Python 3.9 (and OpenSSH) is available from Bullseye, install it and then pivot to the Ansible Python interpreter
-#    to leverage the normal Ansible modules for the rest of the OS upgrades and the remainder of the playbook.
-#
-#    Then proceed with ssh_hardening role. We check for existing SSH keys,
-#    create the root SSH keypair on the control node if it doesn't exist,
-#    and push the public key to the remote host, adding it to the authorized_keys file for root.
-#    A hardened sshd_config is then pushed to the remote host.
-#
-#  ● Phase 2: Once ssh key auth works, we pivot to using the root ssh private key for further actions.
-#    We start by installing parted and provisioning the SSD with LVM after turning off any swap on the device, clearing it and creating a filesystem on it, one large partition.
-#    Then we mount it at /home.
-#
-#    Next, we create a new custom user with an appropriate home directory on the SSD
-#    We then add the existing public key on the control node to the authorized_keys file for that user.
-#    We also set the default shell to zsh and then pull chezmoi down to the remote host.
-#    Since our new user is not root, we need to use the become directive to run the Chezmoi tasks as root on behalf of the custom user.
-#    We run 'chezmoi init' for the custom user as root, which will create the .local/share/chezmoi directory in the user's home directory.
-#
-#  Key points
-#  ──────────
-#  • Phase 1 uses only raw/dist-upgrade + reboot to reach an OS with Python 3.9+
-#  • After reboot into Bullseye, we set `ansible_python_interpreter: /usr/bin/python3`
-#  • The rest of Phase1 as well as Phase 2 can then use all the normal `apt:`, `file:`, `authorized_key:` modules
-#  • Custom user is created + SSH key imported in the `users/` role
-#  • Storage is handled in `storage/`, etc.
-# ─────────────────────────────────────────────────────────────────────────────
+# Copilot guidance – new-system-upgrade-role
+- Mission: repave a UniFi CloudKey Gen2 Plus from Debian 8 → 13, harden SSH, provision `/dev/sda` as `/home`, and bootstrap a target user with chezmoi-managed dotfiles.
+- Entry point: `site.yml` runs two plays. Play 1 (`bootstrap`, `ssh_hardening`) connects with password auth (set by `ANSIBLE_PASSWORD` env). Play 2 (`system`, `storage`, `users`, `chezmoi`) reconnects using the generated `ssh_keys/root_ed25519` key and `/usr/bin/python3`.
+- Upgrade flow: `roles/bootstrap/tasks/main.yml` chains raw `apt-get dist-upgrade` and reboots for 8→9→10→11, installs Python 3.9 + OpenSSH, then switches to native modules to reach Bookworm (12) and optional Trixie (13). Facts are reloaded via `meta: reset_connection` once Python is ready—preserve raw phases when touching early releases.
+- SSH pivot: `roles/ssh_hardening` always ensures the control node holds `ssh_keys/root_ed25519(.pub)` with `openssh_keypair`, pushes it to `/root/.ssh/authorized_keys`, and deploys `sshd_config.j2` (PasswordAuthentication off, key-only). Any edits must keep the handler name `Restart sshd` intact.
+- System prep: `roles/system` applies inventory hostnames, installs `isc-dhcp-*`, and enforces DHCP on `eth0`. Deviations (static net) should live here to keep later roles unchanged.
+- Storage pattern: `roles/storage` reuses the `parted_res.changed` flag to gate destructive steps (`wipefs`, `swapoff`, `filesystem`). When extending storage logic, hook into that boolean instead of adding new fact names.
+- User provisioning: `roles/users` expects inventory vars `target_user`, `public_key_file`, `private_key_file`, and optional `ssh_key_suffix`. It copies those files from the control node verbatim; keep paths readable from the playbook root and avoid fetching remote secrets mid-play.
+- Password handling: the role generates a throwaway password using `lookup('password','/dev/null ...')` and hashes it via `openssl passwd -6` locally. Ensure any refactor retains local hashing (needed when remote Python is absent during upgrades).
+- Chezmoi bootstrap: `roles/chezmoi` installs curl/git, exports `DEBIAN_FRONTEND=noninteractive`, then pipes the official installer to `sh` while impersonating `target_user`. It relies on `github_username` from inventory; guard against reruns by checking for `/home/{{ target_user }}/.local/share/chezmoi` if you add new tasks.
+- Inventory contract: `inventory` is a static INI file; play 1 reads `ANSIBLE_PASSWORD` from the environment, so local runners typically execute `ANSIBLE_PASSWORD=... ansible-playbook -i inventory site.yml`. After SSH hardening, reruns succeed without the password if the key exists.
+- Key artifacts: keep control-plane keys in `ssh_keys/`. Never assume they already exist—bootstrap regenerates them idempotently. When adding new keys, follow the same delegate-to-localhost pattern.
+- Testing workflow: `ansible-playbook -i inventory site.yml -vv` is the canonical verification step. Because of mandatory reboots, prefer using `--limit cloudkey --forks 1` to avoid interleaved waits during development.
+- Coding style: roles lean on built-in module namespaced calls (`ansible.builtin.*`) once Python 3 is available; raw shell is confined to pre-Python stages. Match that split when adding functionality.
+- Safety tips: any task that can break connectivity (networking, storage) must be `become: yes` and idempotent. Reuse existing wait/reboot patterns (`wait_for`, `reboot`) so the control node pauses until SSH resumes.
