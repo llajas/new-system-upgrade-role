@@ -7,43 +7,49 @@
 
 - name: Set current_release from raw stdout
   set_fact:
-    current_release: "{{ current_release_raw.stdout }}"
+    current_release: "{{ current_release_raw.stdout | trim }}"
 
 - name: Print current_release
   debug:
     msg: "Current release is {{ current_release }}"
+
 # ─────────────────────────────────────────────────────────────
 # Phase 1: Jessie (8) → Stretch (9)
 # ─────────────────────────────────────────────────────────────
 - block:
-    - name: Configure APT for Stretch upgrade
-      raw: |
-        cat > /etc/apt/apt.conf.d/99stretch-archive << 'EOF'
-        Acquire {
-          Check-Valid-Until "false";
-          AllowInsecureRepositories "true";
-        };
-        EOF
+    - name: Purge any extra APT sources (only want Stretch archives)
+      raw: >
+        rm -f /etc/apt/sources.list.d/*.list /etc/apt/sources.list.d/*.sources 2>/dev/null || true
+      changed_when: false
 
-        cat > /etc/apt/sources.list << 'EOF'
-        deb http://archive.debian.org/debian           stretch        main contrib non-free
-        deb http://archive.debian.org/debian-security  stretch/updates main contrib non-free
-        deb http://archive.debian.org/debian           stretch-updates main
-        EOF
+    - name: Configure APT for Stretch upgrade
+      raw: >
+        printf '%s\n' \
+        'APT::Get::AllowUnauthenticated "true";' \
+        'Acquire {' \
+        '  Check-Valid-Until "false";' \
+        '  AllowInsecureRepositories "true";' \
+        '};' \
+        > /etc/apt/apt.conf.d/99stretch-archive;
+        printf '%s\n' \
+        'deb http://archive.debian.org/debian stretch main contrib non-free' \
+        'deb http://archive.debian.org/debian-security stretch/updates main contrib non-free' \
+        > /etc/apt/sources.list
       changed_when: false
 
     - name: Dist-upgrade Jessie → Stretch
-      raw: |
-        export DEBIAN_FRONTEND=noninteractive
-        apt-get update -o Acquire::Check-Valid-Until=false
-        apt-get dist-upgrade -y \
-          -o Dpkg::Options::="--force-confdef" \
-          -o Dpkg::Options::="--force-confold"
+      raw: >
+        export DEBIAN_FRONTEND=noninteractive;
+        apt-get clean;
+        rm -rf /var/lib/apt/lists/*;
+        apt-get update -o Acquire::Check-Valid-Until=false;
+        apt-get dist-upgrade -y --force-yes
+        -o Dpkg::Options::="--force-confdef"
+        -o Dpkg::Options::="--force-confold"
       changed_when: false
 
     - name: Reboot into Stretch
-      raw: |
-        reboot now
+      raw: reboot now
       ignore_unreachable: true
 
     - name: Wait for SSH port to be open (run on control node)
@@ -61,6 +67,19 @@
       until: upcheck.rc == 0
       retries: 30
       delay: 10
+
+    # 🔁 Refresh VERSION_ID so later phases see 9 instead of 8
+    - name: Refresh current_release after Stretch reboot
+      raw: ". /etc/os-release && echo $VERSION_ID"
+      register: current_release_raw
+      changed_when: false
+
+    - name: Update current_release fact (now on Stretch)
+      set_fact:
+        current_release: "{{ current_release_raw.stdout | trim }}"
+
+    - debug:
+        msg: "After Stretch reboot, current_release is {{ current_release }}"
   when: current_release | int == 8
 
 # ─────────────────────────────────────────────────────────────
@@ -86,8 +105,7 @@
       changed_when: false
 
     - name: Reboot into Buster
-      raw: |
-        reboot now
+      raw: reboot now
       ignore_unreachable: true
 
     - name: Wait for SSH port to be open (run on control node)
@@ -105,13 +123,24 @@
       until: upcheck.rc == 0
       retries: 30
       delay: 10
+
+    # 🔁 Refresh VERSION_ID so later phases see 10
+    - name: Refresh current_release after Buster reboot
+      raw: ". /etc/os-release && echo $VERSION_ID"
+      register: current_release_raw
+      changed_when: false
+
+    - name: Update current_release fact (now on Buster)
+      set_fact:
+        current_release: "{{ current_release_raw.stdout | trim }}"
+    - debug:
+        msg: "After Buster reboot, current_release is {{ current_release }}"
   when: current_release | int == 9
 
 # ─────────────────────────────────────────────────────────────
 # Phase 3: Buster (10) → Bullseye (11)
 # ─────────────────────────────────────────────────────────────
 - block:
-
     - name: Configure APT for Bullseye upgrade
       raw: |
         cat > /etc/apt/sources.list << 'EOF'
@@ -131,8 +160,7 @@
       changed_when: false
 
     - name: Reboot into Bullseye
-      raw: |
-        reboot now
+      raw: reboot now
       ignore_unreachable: true
 
     - name: Wait for SSH port to be open (run on control node)
@@ -150,6 +178,18 @@
       until: upcheck.rc == 0
       retries: 30
       delay: 10
+
+    # 🔁 Refresh VERSION_ID so Phase 4 sees 11
+    - name: Refresh current_release after Bullseye reboot
+      raw: ". /etc/os-release && echo $VERSION_ID"
+      register: current_release_raw
+      changed_when: false
+
+    - name: Update current_release fact (now on Bullseye)
+      set_fact:
+        current_release: "{{ current_release_raw.stdout | trim }}"
+    - debug:
+        msg: "After Bullseye reboot, current_release is {{ current_release }}"
   when: current_release | int == 10
 
 # ─────────────────────────────────────────────────────────────
@@ -179,16 +219,16 @@
     - name: Point Ansible at Python 3.9
       set_fact:
         ansible_python_interpreter: /usr/bin/python3.9
-    
+
     - name: Re-gather facts now that Python is available
       meta: reset_connection
 
     - name: Gather real facts
       setup: {}
 
-    - name: Reboot
+    - name: Reboot after Python install / Bullseye upgrades
       reboot:
-        msg: "Rebooting after upgrade to Bullseye"
+        msg: "Rebooting after upgrade to Bullseye + Python install"
         reboot_timeout: 300
         test_command: uptime
       ignore_unreachable: true
@@ -215,6 +255,19 @@
         msg: "Rebooting after upgrade to Bookworm"
         reboot_timeout: 300
         test_command: uptime
+      ignore_unreachable: true
+
+    # 🔁 Refresh VERSION_ID so Phase 5 sees 12
+    - name: Refresh current_release after Bookworm reboot
+      raw: ". /etc/os-release && echo $VERSION_ID"
+      register: current_release_raw
+      changed_when: false
+
+    - name: Update current_release fact (now on Bookworm)
+      set_fact:
+        current_release: "{{ current_release_raw.stdout | trim }}"
+    - debug:
+        msg: "After Bookworm reboot, current_release is {{ current_release }}"
   when: current_release | int == 11
 
 # ─────────────────────────────────────────────────────────────
@@ -247,13 +300,17 @@
         msg: "Rebooting after upgrade to Trixie"
         reboot_timeout: 600
         test_command: "cat /etc/os-release"
+      ignore_unreachable: true
 
     # refresh VERSION_ID for any subsequent logic
-    - name: Refresh current_release (post-reboot)
+    - name: Refresh current_release (post-Trixie reboot)
       raw: ". /etc/os-release && echo $VERSION_ID"
       register: current_release_raw_post
       changed_when: false
 
     - set_fact:
         current_release: "{{ current_release_raw_post.stdout | trim }}"
-  when: current_release | int == 12 
+
+    - debug:
+        msg: "After Trixie reboot, current_release is {{ current_release }}"
+  when: current_release | int == 12
