@@ -1,37 +1,57 @@
+---
 - name: Ensure sudo is available
+  become: yes
   apt:
     name: sudo
     state: present
-  become: yes
-
-- name: Make apt noninteractive during chezmoi run
-  lineinfile:
-    path: /etc/environment
-    line: 'DEBIAN_FRONTEND=noninteractive'
-    create: yes
-  become: yes
 
 - name: Ensure chezmoi prerequisites are present
+  become: yes
   apt:
     name:
-      - curl
+      - curl      # still handy for other stuff
       - git
+      - chezmoi  # install from Debian once you're on 11/12/13
     state: present
     update_cache: yes
-  become: yes
 
-- name: Initialize chezmoi and apply dotfiles
+- name: Check if chezmoi repo is already initialized for {{ target_user }}
+  become: yes
+  become_user: "{{ target_user }}"
+  stat:
+    path: "/home/{{ target_user }}/.local/share/chezmoi"
+  register: chezmoi_dir
+
+# First-time init: clone + apply your dotfiles repo
+- name: Initialize chezmoi for {{ target_user }} (with retries)
   become: yes
   become_user: "{{ target_user }}"
   environment:
-    CHEZMOI_NO_SUDO: "0"
     HOME: "/home/{{ target_user }}"
     DEBIAN_FRONTEND: noninteractive
-  shell: |
-    set -e
-    # the actual chezmoi installer
-    sh -c "$(curl -fsLS get.chezmoi.io)" -- init --apply {{ github_username }} --verbose
-    # any post-install commands you need
-    echo "Post-chezmoi commands running"
+  command: >
+    chezmoi init --apply
+    "https://github.com/{{ github_username }}/dotfiles.git"
   args:
     chdir: "/home/{{ target_user }}"
+  when: not chezmoi_dir.stat.exists
+  register: chezmoi_init
+  retries: 5
+  delay: 60
+  until: chezmoi_init.rc == 0
+
+# Subsequent runs: just update/apply changes
+- name: Run chezmoi update for {{ target_user }} (with retries)
+  become: yes
+  become_user: "{{ target_user }}"
+  environment:
+    HOME: "/home/{{ target_user }}"
+    DEBIAN_FRONTEND: noninteractive
+  command: chezmoi update
+  args:
+    chdir: "/home/{{ target_user }}"
+  when: chezmoi_dir.stat.exists
+  register: chezmoi_update
+  retries: 5
+  delay: 60
+  until: chezmoi_update.rc == 0
