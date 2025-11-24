@@ -5,6 +5,16 @@
     name: sudo
     state: present
 
+# 🔧 New: make sure the home directory exists and is writable by target_user
+- name: Ensure home directory for {{ target_user }} exists and is writable
+  become: yes
+  file:
+    path: "/home/{{ target_user }}"
+    state: directory
+    owner: "{{ target_user }}"
+    group: "{{ target_user }}"
+    mode: "0750"
+
 - name: Ensure chezmoi prerequisites are present
   become: yes
   apt:
