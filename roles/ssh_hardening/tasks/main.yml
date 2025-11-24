@@ -1,6 +1,4 @@
 ---
-# Generate & install an ED25519 keypair for root over SSH
-
 # 1. Ensure the local key directory exists (on your control node)
 - name: Ensure local ssh_keys dir exists
   file:
@@ -57,7 +55,7 @@
     key: "{{ local_pubkey.content | b64decode }}"
     state: present
 
-# 7. Finally, deploy your hardened sshd_config
+# 7. Deploy hardened sshd_config (the template we built)
 - name: Deploy sshd_config
   template:
     src: sshd_config.j2

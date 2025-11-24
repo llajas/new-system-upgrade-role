@@ -10,3 +10,7 @@ ssh_hardening_root_pubkey_path: "{{ ssh_hardening_root_key_path }}.pub"
 
 # Comment embedded into the public key
 ssh_hardening_root_key_comment: "root@{{ inventory_hostname }}"
+
+# During bootstrap, we want root SSH (key only).
+# Once you're happy with the host, you can set this to false (e.g. in inventory).
+ssh_allow_root_ssh: true

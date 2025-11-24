@@ -1,5 +1,52 @@
-# ...existing configuration options...
+# /etc/ssh/sshd_config ── hardened for {{ inventory_hostname }}
+
+# 0. Silence banner & distro info
+Banner none
+VersionAddendum _
+
+# 1. Host keys / key types
+# (Let Debian generate keys in /etc/ssh as usual)
+HostKey /etc/ssh/ssh_host_ed25519_key
+HostKey /etc/ssh/ssh_host_rsa_key
+
+HostKeyAlgorithms ssh-ed25519,rsa-sha2-512
+PubkeyAcceptedAlgorithms ssh-ed25519,rsa-sha2-512
+
+# 2. Key exchange, ciphers, MACs
+# These are safe for modern OpenSSH. Jessie’s sshd will ignore
+# unknown algos, but if you ever see weird negotiation issues,
+# you can temporarily comment this block while upgrading.
+KexAlgorithms sntrup761x25519-sha512@openssh.com,curve25519-sha256
+Ciphers chacha20-poly1305@openssh.com,aes256-gcm@openssh.com
+MACs hmac-sha2-256-etm@openssh.com,hmac-sha2-512-etm@openssh.com
+
+# 3. Authentication policy
 PasswordAuthentication no
+ChallengeResponseAuthentication no
+UsePAM no
+
+{% if ssh_allow_root_ssh %}
+# During bootstrap: allow root over key, plus target user
 PermitRootLogin prohibit-password
 AllowUsers root {{ target_user }}
-# ...other configuration options...
+{% else %}
+# Final hardened state: no root SSH, only target user
+PermitRootLogin no
+AllowUsers {{ target_user }}
+{% endif %}
+
+# 4. Login window & basic DoS / brute-force throttling
+LoginGraceTime 15s
+MaxAuthTries 3
+MaxStartups 10:30:100
+
+# 5. Session / forwarding
+Compression delayed
+AllowTcpForwarding yes
+PermitTunnel no
+X11Forwarding no
+ClientAliveInterval 60
+ClientAliveCountMax 2
+
+# 6. SFTP subsystem (needed for Ansible file transfers)
+Subsystem sftp internal-sftp
