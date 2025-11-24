@@ -30,30 +30,30 @@ limits_config:
 
 scrape_configs:
   # ------------------------------------------------
-  # A) SSH via /var/log/auth.log (primary)
+  # A) SSH via systemd journal (preferred)
   # ------------------------------------------------
-  - job_name: ssh-authlog
+  - job_name: ssh-journal
+    journal:
+      path: /var/log/journal
+      max_age: 24h
+      labels:
+        host: {{ promtail_host_label | quote }}
+        app: sshd
+        job: ssh-journal
+    relabel_configs:
+      # Only keep sshd / ssh.service entries
+      - source_labels: ['__journal__systemd_unit']
+        regex: 'ssh\.service|sshd\.service'
+        action: keep
+
+  # ------------------------------------------------
+  # B) Fail2ban log file
+  # ------------------------------------------------
+  - job_name: fail2ban
     static_configs:
       - targets: [localhost]
         labels:
           host: {{ promtail_host_label | quote }}
-          app: sshd
-          job: ssh-authlog
-          __path__: /var/log/auth.log
-
-  # ------------------------------------------------
-  # B) Optional: systemd journal (if used)
-  #     - can be enabled later if auth.log disappears
-  # ------------------------------------------------
-  # - job_name: ssh-journal
-  #   journal:
-  #     labels:
-  #       host: {{ promtail_host_label | quote }}
-  #       app: sshd
-  #       job: ssh-journal
-  #     max_age: 24h
-  #     path: /var/log/journal
-  #   relabel_configs:
-  #     - source_labels: ['__journal__systemd_unit']
-  #       regex: 'ssh\.service|sshd\.service'
-  #       action: keep
+          app: fail2ban
+          job: fail2ban
+          __path__: /var/log/fail2ban.log
