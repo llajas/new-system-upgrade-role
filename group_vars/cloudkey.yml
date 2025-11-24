@@ -1,0 +1,32 @@
+---
+ansible_become: true
+
+# ========== node_exporter ==========
+node_exporter_web_listen_address: "0.0.0.0:9100"
+
+node_exporter_enabled_collectors:
+  - systemd
+  - processes
+  - filesystem
+  - netclass
+  - netstat
+  - tcpstat
+  - time
+  - uname
+  - vmstat
+  - stat
+  - logind
+  - sockstat
+  - pressure
+
+# Optional: expose a textfile collector dir for custom scripts later
+node_exporter_textfile_dir: "/var/lib/node_exporter/textfile_collector"
+
+node_exporter_service_state: "started"
+node_exporter_service_enabled: true
+
+# ========== fail2ban_exporter ==========
+fail2ban_exporter_enabled: true          # easy toggle if you ever want to disable it
+fail2ban_exporter_listen_address: "0.0.0.0:9191"
+fail2ban_exporter_service_state: "started"
+fail2ban_exporter_service_enabled: true

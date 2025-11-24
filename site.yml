@@ -4,35 +4,44 @@
   remote_user: root
   gather_facts: no
   become: yes
+
   vars:
-    ansible_ssh_pass: "{{ lookup('env','ANSIBLE_PASSWORD') }}"
+    # Initial access uses password; export ANSIBLE_PASSWORD in your shell.
+    ansible_ssh_pass: "{{ lookup('env', 'ANSIBLE_PASSWORD') }}"
+
   pre_tasks:
-    - name: “Check if key-auth already works”
+    - name: Check if key-auth already works
       ping:
       vars:
-        # override to test key auth only
+        # Temporarily override to test key auth only
         ansible_ssh_private_key_file: "{{ playbook_dir }}/ssh_keys/root_ed25519"
       register: key_auth
       ignore_errors: yes
 
-    - name: “Skip bootstrap if key is already installed”
+    - name: Skip bootstrap if key is already installed
       meta: end_play
       when: key_auth is succeeded
 
   roles:
-    - bootstrap
-    - ssh_hardening
+    - bootstrap       # Debian 8 → … → 13 + Python, SSH, etc.
+    - ssh_hardening   # generate root key, deploy hardened sshd_config
+
 
 - name: 2️⃣ Harden & daily operations (key login)
   hosts: cloudkey
   remote_user: root
   gather_facts: yes
   become: yes
+
   vars:
+    # Now we connect via the generated root key
     ansible_ssh_private_key_file: "{{ playbook_dir }}/ssh_keys/root_ed25519"
     ansible_python_interpreter: /usr/bin/python3
+
   roles:
-    - system
-    - storage
-    - users
-    - chezmoi
+    - system      # Hostname and interface settings
+    - storage     # SSD → /home
+    - users       # create {{ target_user }} and install their keys
+    - fail2ban    # install + jail.d + discord action
+    - exporters   # node_exporter + fail2ban_exporter
+    - chezmoi     # run chezmoi for {{ target_user }}
