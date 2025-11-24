@@ -38,7 +38,7 @@
       - { key_var: "private_key_file", dest: "/home/{{ target }}/.ssh/{{ target }}_{{ ssh_key_suffix | default('id_rsa') }}", mode: "0600" }
   loop: "{{ ssh_keys }}"
   copy:
-    src: "{{ lookup('vars', item.key_var) }}"
+    src: "{{ playbook_dir }}/{{ lookup('vars', item.key_var) }}"
     dest: "{{ item.dest }}"
     owner: "{{ target }}"
     group: "{{ target }}"

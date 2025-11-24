@@ -3,7 +3,7 @@ goldenrod.johto.lajas.tech
 
 [cloudkey:vars]
 target_user=myuser
-public_key_file=playbooks/files/myuser_id_ed25519.pub
-private_key_file=playbooks/files/myuser_id_ed25519
+public_key_file=ssh_keys/myuser_id_ed25519.pub
+private_key_file=ssh_keys/myuser_id_ed25519
 ssh_key_suffix=id_ed25519
 github_username=anonymous
