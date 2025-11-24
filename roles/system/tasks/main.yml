@@ -1,21 +1,36 @@
----
-
-- name: Set hostname/fqdn using inventory name
-  ansible.builtin.hostname:
-    name: "{{ inventory_hostname }}"
+- name: Install DHCP client packages (Debian/Ubuntu)
+  ansible.builtin.package:
+    name:
+      - isc-dhcp-client
+      - isc-dhcp-common
+    state: present
+  when: ansible_facts.os_family == "Debian"
   become: yes
 
-- name: Install dhcp client packages
-  ansible.builtin.package:
-    name: "{{ item }}"
+- name: Ensure eth0 is brought up automatically
+  ansible.builtin.lineinfile:
+    path: /etc/network/interfaces
+    regexp: '^auto eth0'
+    line: 'auto eth0'
+    insertafter: '^auto lo'
     state: present
-  loop:
-    - isc-dhcp-client
-    - isc-dhcp-common
+  when: ansible_facts.os_family == "Debian"
+  become: yes
 
-- name: Set eth0 interface to dhcp
+- name: Ensure eth0 uses DHCP
   ansible.builtin.lineinfile:
     path: /etc/network/interfaces
     regexp: '^iface eth0 inet'
     line: 'iface eth0 inet dhcp'
     state: present
+  when: ansible_facts.os_family == "Debian"
+  become: yes
+
+- name: Remove any static addressing lines (address/netmask/gateway/dns-nameservers)
+  ansible.builtin.lineinfile:
+    path: /etc/network/interfaces
+    regexp: '^\s*(address|netmask|gateway|dns-nameservers)\b'
+    state: absent
+  when: ansible_facts.os_family == "Debian"
+  become: yes
+ 
