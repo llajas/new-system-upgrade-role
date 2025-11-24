@@ -1,0 +1,12 @@
+---
+# Where to keep the generated *root* key on the control node
+ssh_hardening_root_key_dir: "{{ playbook_dir }}/ssh_keys"
+
+# Algorithm and filenames
+ssh_hardening_root_key_algorithm: "ed25519"
+ssh_hardening_root_key_basename: "root_{{ ssh_hardening_root_key_algorithm }}"
+ssh_hardening_root_key_path: "{{ ssh_hardening_root_key_dir }}/{{ ssh_hardening_root_key_basename }}"
+ssh_hardening_root_pubkey_path: "{{ ssh_hardening_root_key_path }}.pub"
+
+# Comment embedded into the public key
+ssh_hardening_root_key_comment: "root@{{ inventory_hostname }}"
