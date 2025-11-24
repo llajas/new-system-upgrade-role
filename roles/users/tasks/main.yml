@@ -4,11 +4,11 @@
 
 - name: Generate a temporary random password for {{ target }}
   set_fact:
-    red_tmp_pass: "{{ lookup('password', '/dev/null length=32 chars=ascii_letters,digits') }}"
+    user_tmp_pass: "{{ lookup('password', '/dev/null length=32 chars=ascii_letters,digits') }}"
 
 - name: Hash that password with SHA-512 (requires openssl on your control node)
   set_fact:
-    red_pass_hash: "{{ lookup('pipe', 'openssl passwd -6 ' + red_tmp_pass) }}"
+    user_pass_hash: "{{ lookup('pipe', 'openssl passwd -6 ' + user_tmp_pass) }}"
 
 - name: Create or update user {{ target }} (with hashed password so we can unlock)
   user:
@@ -19,10 +19,8 @@
     groups: sudo
     state: present
     create_home: yes
-
-    password: "{{ red_pass_hash }}"
-    update_password: always
-
+    password: "{{ user_pass_hash }}"
+    update_password: on_create       # ← only on first run
     password_lock: false
 
 - name: Ensure .ssh directory exists for user {{ target }}
