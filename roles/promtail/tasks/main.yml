@@ -11,10 +11,14 @@
     - /var/lib/promtail
   become: true
 
-- name: Install unzip
+- name: Ensure curl and unzip are installed
   apt:
-    name: unzip
+    name:
+      - curl
+      - unzip
     state: present
+    update_cache: yes
+    cache_valid_time: 3600
   become: true
 
 - name: Check if promtail binary exists
@@ -24,12 +28,12 @@
 
 - name: Download and install promtail binary
   block:
-    - name: Download promtail zip
-      get_url:
-        url: "{{ promtail_download_url }}"
-        dest: /tmp/promtail.zip
-        mode: "0644"
-      
+    - name: Download promtail zip (via curl, avoid get_url bug)
+      command: >
+        curl -L --fail -o /tmp/promtail.zip "{{ promtail_download_url }}"
+      args:
+        creates: /tmp/promtail.zip
+
     - name: Unzip promtail
       unarchive:
         src: /tmp/promtail.zip
@@ -38,6 +42,11 @@
         mode: "0755"
         owner: root
         group: root
+
+    - name: Remove downloaded promtail archive
+      file:
+        path: /tmp/promtail.zip
+        state: absent
   when: not promtail_bin.stat.exists
   become: true
 
