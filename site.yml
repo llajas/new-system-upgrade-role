@@ -44,6 +44,5 @@
     - users       # create {{ target_user }} and install their keys
     - fail2ban    # install + jail.d + discord action
     - exporters   # node_exporter + fail2ban_exporter
-    - promtail    # ship SSH logs to Loki
+    - role: grafana.grafana.promtail    # ship SSH logs to Loki
     - chezmoi     # run chezmoi for {{ target_user }}
-

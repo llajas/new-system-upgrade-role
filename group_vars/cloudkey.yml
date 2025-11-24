@@ -30,3 +30,34 @@ fail2ban_exporter_enabled: true          # easy toggle if you ever want to disab
 fail2ban_exporter_listen_address: "0.0.0.0:9191"
 fail2ban_exporter_service_state: "started"
 fail2ban_exporter_service_enabled: true
+
+# -------------------------
+# Promtail → Loki (CloudKey)
+# -------------------------
+
+promtail_runtime_mode: "root"         # easier on a tiny box, and fine in your use case
+promtail_version: "3.6.1"
+promtail_positions_path: "/var/lib/promtail"
+
+promtail_clients:
+  - url: "https://loki.lajas.tech/loki/api/v1/push"
+
+promtail_limits_config:
+  readline_rate: 10000
+  readline_burst: 10000
+  readline_rate_drop: true
+
+# Use journald instead of /var/log/auth.log
+promtail_scrape_configs:
+  - job_name: "ssh-journal"
+    journal:
+      labels:
+        host: "{{ ansible_facts['hostname'] }}"
+        app: "sshd"
+        job: "ssh-journal"
+      path: /var/log/journal   # comment this out if the journal isn't persistent
+      max_age: 24h
+    relabel_configs:
+      - source_labels: ['__journal__systemd_unit']
+        regex: 'ssh\.service|sshd\.service'
+        action: keep

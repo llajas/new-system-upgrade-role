@@ -2,14 +2,12 @@
 # roles/exporters/tasks/main.yml
 
 - name: Ensure node-exp user exists
-  become: yes
   user:
     name: node-exp
     shell: /usr/sbin/nologin
     system: true
 
 - name: Ensure textfile collector directory exists
-  become: yes
   file:
     path: "{{ node_exporter_textfile_dir }}"
     state: directory
@@ -18,12 +16,10 @@
     mode: "0755"
 
 - name: Install and configure node_exporter
-  become: yes
   include_role:
     name: prometheus.prometheus.node_exporter
 
 - name: Install and configure fail2ban_exporter
-  become: yes
   include_role:
     name: prometheus.prometheus.fail2ban_exporter
   when: (fail2ban_exporter_enabled | default(true)) | bool
