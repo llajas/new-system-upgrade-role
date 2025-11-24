@@ -45,6 +45,15 @@
     mode: "{{ item.mode }}"
   when: lookup('vars', item.key_var, default='') != ''
 
+- name: Ensure /etc/sudoers.d exists
+  become: yes
+  file:
+    path: /etc/sudoers.d
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+
 - name: Allow {{ target_user }} to sudo without a password
   become: yes
   copy:
