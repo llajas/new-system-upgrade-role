@@ -5,7 +5,6 @@
     name: sudo
     state: present
 
-# 🔧 New: make sure the home directory exists and is writable by target_user
 - name: Ensure home directory for {{ target_user }} exists and is writable
   become: yes
   file:
@@ -13,7 +12,12 @@
     state: directory
     owner: "{{ target_user }}"
     group: "{{ target_user }}"
-    mode: "0750"
+    mode: "0755"
+
+- name: Fix ownership inside {{ target_user }} home directory
+  become: yes
+  command: chown -R {{ target_user }}:{{ target_user }} /home/{{ target_user }}
+
 
 - name: Ensure chezmoi prerequisites are present
   become: yes
