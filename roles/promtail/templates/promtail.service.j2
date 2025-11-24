@@ -1,0 +1,18 @@
+[Unit]
+Description=Promtail log shipper (CloudKey)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/promtail \
+  --config.file=/etc/promtail/config-cloudkey.yaml
+Restart=always
+RestartSec=5
+
+# Run as root (needs access to /var/log/auth.log and /var/log/journal)
+User=root
+Group=root
+
+[Install]
+WantedBy=multi-user.target

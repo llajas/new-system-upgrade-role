@@ -1,0 +1,70 @@
+---
+- name: Ensure promtail dirs exist
+  file:
+    path: "{{ item }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  loop:
+    - /etc/promtail
+    - /var/lib/promtail
+  become: true
+
+- name: Install unzip
+  apt:
+    name: unzip
+    state: present
+  become: true
+
+- name: Check if promtail binary exists
+  stat:
+    path: /usr/local/bin/promtail
+  register: promtail_bin
+
+- name: Download and install promtail binary
+  block:
+    - name: Download promtail zip
+      get_url:
+        url: "{{ promtail_download_url }}"
+        dest: /tmp/promtail.zip
+        mode: "0644"
+      
+    - name: Unzip promtail
+      unarchive:
+        src: /tmp/promtail.zip
+        dest: /usr/local/bin/
+        remote_src: yes
+        mode: "0755"
+        owner: root
+        group: root
+  when: not promtail_bin.stat.exists
+  become: true
+
+- name: Install promtail config for CloudKey
+  template:
+    src: config-cloudkey.yaml.j2
+    dest: /etc/promtail/config-cloudkey.yaml
+    owner: root
+    group: root
+    mode: "0644"
+  notify: restart promtail
+  become: true
+
+- name: Install promtail systemd unit
+  template:
+    src: promtail.service.j2
+    dest: /etc/systemd/system/promtail.service
+    owner: root
+    group: root
+    mode: "0644"
+  notify: restart promtail
+  become: true
+
+- name: Reload systemd and enable promtail
+  systemd:
+    name: promtail
+    enabled: true
+    state: started
+    daemon_reload: true
+  become: true
