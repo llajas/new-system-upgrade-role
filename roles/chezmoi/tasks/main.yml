@@ -14,10 +14,24 @@
     group: "{{ target_user }}"
     mode: "0755"
 
+- name: Ensure Ansible temp dir under home exists and is owned by {{ target_user }}
+  become: yes
+  file:
+    path: "/home/{{ target_user }}/.ansible/tmp"
+    state: directory
+    owner: "{{ target_user }}"
+    group: "{{ target_user }}"
+    mode: "0700"
+
+# Optional but safe: normalize everything under $HOME to the right owner
 - name: Fix ownership inside {{ target_user }} home directory
   become: yes
-  command: chown -R {{ target_user }}:{{ target_user }} /home/{{ target_user }}
-
+  file:
+    path: "/home/{{ target_user }}"
+    state: directory
+    owner: "{{ target_user }}"
+    group: "{{ target_user }}"
+    recurse: yes
 
 - name: Ensure chezmoi prerequisites are present
   become: yes
@@ -44,6 +58,8 @@
     DEBIAN_FRONTEND: noninteractive
     # Make sure chezmoi in ~/.local/bin is on PATH
     PATH: "/home/{{ target_user }}/.local/bin:/usr/local/bin:/usr/bin:/bin"
+    # Let scripts detect they're running under automation if you ever need it
+    ANSIBLE_RUN: "1"
   shell: |
     set -e
     # Install chezmoi locally for {{ target_user }} if missing
@@ -61,21 +77,26 @@
   delay: 60
   until: chezmoi_init.rc == 0
 
-# Subsequent runs: just update/apply changes
-- name: Run chezmoi update for {{ target_user }} (with retries)
-  become: yes
-  become_user: "{{ target_user }}"
-  environment:
-    HOME: "/home/{{ target_user }}"
-    DEBIAN_FRONTEND: noninteractive
-    PATH: "/home/{{ target_user }}/.local/bin:/usr/local/bin:/usr/bin:/bin"
-  shell: |
-    set -e
-    chezmoi update
-  args:
-    chdir: "/home/{{ target_user }}"
-  when: chezmoi_dir.stat.exists
-  register: chezmoi_update
-  retries: 5
-  delay: 60
-  until: chezmoi_update.rc == 0
+# ⚠️ Intentionally NOT running `chezmoi update` automatically here.
+# On subsequent runs, Ansible will skip the init step because the
+# .local/share/chezmoi dir exists. You can run `chezmoi update`
+# manually as {{ target_user }} once you're logged in.
+
+# # Subsequent runs: just update/apply changes
+# - name: Run chezmoi update for {{ target_user }} (with retries)
+#   become: yes
+#   become_user: "{{ target_user }}"
+#   environment:
+#     HOME: "/home/{{ target_user }}"
+#     DEBIAN_FRONTEND: noninteractive
+#     PATH: "/home/{{ target_user }}/.local/bin:/usr/local/bin:/usr/bin:/bin"
+#   shell: |
+#     set -e
+#     chezmoi update
+#   args:
+#     chdir: "/home/{{ target_user }}"
+#   when: chezmoi_dir.stat.exists
+#   register: chezmoi_update
+#   retries: 5
+#   delay: 60
+#   until: chezmoi_update.rc == 0
