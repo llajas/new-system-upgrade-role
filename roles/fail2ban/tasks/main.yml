@@ -1,0 +1,61 @@
+---
+- name: Install fail2ban
+  become: yes
+  apt:
+    name: fail2ban
+    state: present
+    update_cache: yes
+
+- name: Ensure /etc/fail2ban/jail.d exists
+  become: yes
+  file:
+    path: /etc/fail2ban/jail.d
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+
+- name: Deploy fail2ban sshd jail overrides
+  become: yes
+  copy:
+    src: "{{ item }}"
+    dest: "/etc/fail2ban/jail.d/{{ item }}"
+    owner: root
+    group: root
+    mode: '0644'
+  loop:
+    - 00-disable-stock-sshd.conf
+    - sshd.conf
+  notify: Restart fail2ban
+
+- name: Deploy fail2ban discord action (if webhook is defined)
+  become: yes
+  template:
+    src: discord.conf.j2
+    dest: /etc/fail2ban/action.d/discord.conf
+    owner: root
+    group: root
+    mode: '0644'
+  when:
+    - fail2ban_discord_webhook_url is defined
+    - fail2ban_discord_webhook_url | length > 0
+  notify: Restart fail2ban
+
+- name: Ensure fail2ban is enabled and started
+  become: yes
+  service:
+    name: fail2ban
+    state: started
+    enabled: yes
+
+# Optional: quick sanity check that the sshd jail is active
+- name: Check fail2ban status for sshd jail
+  become: yes
+  command: "fail2ban-client status {{ fail2ban_ssh_jail_name | default('sshd') }}"
+  register: fail2ban_sshd_status
+  changed_when: false
+  failed_when: fail2ban_sshd_status.rc != 0
+
+- name: Show fail2ban sshd jail status
+  debug:
+    var: fail2ban_sshd_status.stdout

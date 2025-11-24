@@ -1,0 +1,15 @@
+[Definition]
+actionstart = curl -s -H 'Content-Type: application/json' -X POST \
+              -d '{"content":"🔰 **Fail2Ban started** (jail: sshd)"}' <webhook_url>
+
+actionstop  = curl -s -H 'Content-Type: application/json' -X POST \
+              -d '{"content":"🛑 **Fail2Ban stopped** (jail: sshd)"}' <webhook_url>
+
+actionban   = curl -s -H 'Content-Type: application/json' -X POST \
+              -d "{\"content\":\"🚫 **BANNED** <ip> after <failures> failed SSH logins\"}" <webhook_url>
+
+actionunban = curl -s -H 'Content-Type: application/json' -X POST \
+              -d "{\"content\":\"✅ **Unbanned** <ip> (ban expired)\"}" <webhook_url>
+
+[Init]
+webhook_url = {{ fail2ban_discord_webhook_url }}

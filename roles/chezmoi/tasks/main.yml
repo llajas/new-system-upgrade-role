@@ -4,7 +4,6 @@
   apt:
     name: sudo
     state: present
-    update_cache: yes
 
 - name: Ensure chezmoi prerequisites are present
   become: yes
@@ -13,6 +12,7 @@
       - curl
       - git
     state: present
+    update_cache: yes
 
 - name: Check if chezmoi repo is already initialized for {{ target_user }}
   become: yes
@@ -21,17 +21,24 @@
     path: "/home/{{ target_user }}/.local/share/chezmoi"
   register: chezmoi_dir
 
-# First-time init: installer script + apply
+# First-time init: install chezmoi (if needed) + apply dotfiles
 - name: Initialize chezmoi for {{ target_user }} (with retries)
   become: yes
   become_user: "{{ target_user }}"
   environment:
     HOME: "/home/{{ target_user }}"
     DEBIAN_FRONTEND: noninteractive
+    # Make sure chezmoi in ~/.local/bin is on PATH
+    PATH: "/home/{{ target_user }}/.local/bin:/usr/local/bin:/usr/bin:/bin"
   shell: |
     set -e
-    # Use official installer to init + apply dotfiles
-    sh -c "$(curl -fsLS get.chezmoi.io)" -- init --apply {{ github_username }} --verbose
+    # Install chezmoi locally for {{ target_user }} if missing
+    if ! command -v chezmoi >/dev/null 2>&1; then
+      sh -c "$(curl -fsLS get.chezmoi.io)" -- -b "$HOME/.local/bin"
+    fi
+
+    # Initial clone + apply from your dotfiles repo
+    chezmoi init --apply "https://github.com/{{ github_username }}/dotfiles.git"
   args:
     chdir: "/home/{{ target_user }}"
   when: not chezmoi_dir.stat.exists
@@ -47,9 +54,10 @@
   environment:
     HOME: "/home/{{ target_user }}"
     DEBIAN_FRONTEND: noninteractive
-    # In case chezmoi is in ~/.local/bin after installer
-    PATH: "/home/{{ target_user }}/.local/bin:{{ ansible_env.PATH | default('/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin') }}"
-  command: chezmoi update
+    PATH: "/home/{{ target_user }}/.local/bin:/usr/local/bin:/usr/bin:/bin"
+  shell: |
+    set -e
+    chezmoi update
   args:
     chdir: "/home/{{ target_user }}"
   when: chezmoi_dir.stat.exists

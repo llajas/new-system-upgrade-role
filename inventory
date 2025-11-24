@@ -7,3 +7,4 @@ public_key_file=ssh_keys/myuser_id_ed25519.pub
 private_key_file=ssh_keys/myuser_id_ed25519
 ssh_key_suffix=id_ed25519
 github_username=anonymous
+fail2ban_discord_webhook_url=https://discord.com/api/webhooks/1234567890/abcdefghijklmnopqrstuvwxyz
